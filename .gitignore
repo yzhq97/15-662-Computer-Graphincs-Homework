@@ -3,4 +3,5 @@ __pycache__
 .DS_Store
 .idea
 *.tar
-
+build
+cmake-build-debug
