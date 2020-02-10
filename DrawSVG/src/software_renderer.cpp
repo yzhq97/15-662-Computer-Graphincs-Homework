@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "triangulation.h"
+#include "geometry.h"
 
 using namespace std;
 
@@ -244,6 +245,8 @@ void SoftwareRendererImp::rasterize_line( float x0, float y0,
 
   // Task 2: 
   // Implement line rasterization
+
+
 }
 
 void SoftwareRendererImp::rasterize_triangle( float x0, float y0,
@@ -252,6 +255,8 @@ void SoftwareRendererImp::rasterize_triangle( float x0, float y0,
                                               Color color ) {
   // Task 3: 
   // Implement triangle rasterization
+
+
 
 }
 

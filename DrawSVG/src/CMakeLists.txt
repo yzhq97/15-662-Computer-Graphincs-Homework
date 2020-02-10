@@ -35,6 +35,7 @@ set(CMU462_DRAWSVG_SOURCE
     software_renderer.cpp
     drawsvg.cpp
     main.cpp
+    geometry.cpp
 )
 
 if (WIN32)
@@ -51,7 +52,7 @@ set(CMU462_DRAWSVG_HEADER
     hardware_renderer.h
     software_renderer.h
     drawsvg.h
-)
+    geometry.h)
 
 # Import hardware renderer
 option(DRAWSVG_BUILD_HARDWARE_RENDERER  "Build hardware implementation"  ON)
