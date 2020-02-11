@@ -6,7 +6,7 @@
 #include <algorithm>
 
 #include "triangulation.h"
-#include "geometry.h"
+#include "mytools.h"
 
 using namespace std;
 
@@ -231,11 +231,8 @@ void SoftwareRendererImp::rasterize_point( float x, float y, Color color ) {
   if ( sx < 0 || sx >= target_w ) return;
   if ( sy < 0 || sy >= target_h ) return;
 
-  // fill sample - NOT doing alpha blending!
-  render_target[4 * (sx + sy * target_w)    ] = (uint8_t) (color.r * 255);
-  render_target[4 * (sx + sy * target_w) + 1] = (uint8_t) (color.g * 255);
-  render_target[4 * (sx + sy * target_w) + 2] = (uint8_t) (color.b * 255);
-  render_target[4 * (sx + sy * target_w) + 3] = (uint8_t) (color.a * 255);
+  // fill sample - with alpha blending!
+  ZQ::alpha_blend_pixel(render_target, target_w, target_h, sx, sy, color);
 
 }
 
@@ -256,7 +253,36 @@ void SoftwareRendererImp::rasterize_triangle( float x0, float y0,
   // Task 3: 
   // Implement triangle rasterization
 
+  // make supersampling buffer
+  int super_w = target_w * sample_rate, super_h = target_h * sample_rate;
+  uint8_t* buffer = (uint8_t*)malloc(sizeof(uint8_t) * super_h * super_w * 4);
+  memset(buffer, 0, sizeof(uint8_t) * super_h * super_w * 4);
 
+  float xs0 = x0 * sample_rate, ys0 = y0 * sample_rate;
+  float xs1 = x1 * sample_rate, ys1 = y1 * sample_rate;
+  float xs2 = x2 * sample_rate, ys2 = y2 * sample_rate;
+
+  // get bounding box
+  int x_low = (int)floor(min({xs0, xs1, xs2}));
+  int x_high = (int)ceil(max({xs0, xs1, xs2}));
+  int y_low = (int)floor(min({ys0, ys1, ys2}));
+  int y_high = (int)ceil(max({ys0, ys1, ys2}));
+
+  // iterate and do point in triangle test
+  for (int x = x_low; x <= x_high; x++) {
+      for (int y = y_low; y <= y_high; y++) {
+          if (ZQ::point_in_triangle(x+0.5f, y+0.5f, xs0, ys0, xs1, ys1, xs2, ys2)) {
+              buffer[4 * (x + y * super_w)    ] = (uint8_t) (255.0f * color.r);
+              buffer[4 * (x + y * super_w) + 1] = (uint8_t) (255.0f * color.g);
+              buffer[4 * (x + y * super_w) + 2] = (uint8_t) (255.0f * color.b);
+              buffer[4 * (x + y * super_w) + 3] = (uint8_t) (255.0f * color.a);
+          }
+      }
+  }
+
+  // downsample and downsample
+
+  free(buffer);
 
 }
 
