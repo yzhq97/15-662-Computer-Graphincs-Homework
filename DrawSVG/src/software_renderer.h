@@ -49,7 +49,7 @@ class SoftwareRenderer : public SVGRenderer {
   size_t sample_rate;
 
   // Render target memory location
-  unsigned char* render_target; 
+  unsigned char* render_target;
 
   // Target buffer dimension (in pixels)
   size_t target_w; size_t target_h;
@@ -77,6 +77,10 @@ class SoftwareRendererImp : public SoftwareRenderer {
   // set render target
   void set_render_target( unsigned char* target_buffer,
                           size_t width, size_t height );
+
+ protected:
+
+  unsigned char* buffer;
 
  private:
 

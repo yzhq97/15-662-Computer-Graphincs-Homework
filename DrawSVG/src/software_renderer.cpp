@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "triangulation.h"
-#include "mytools.h"
+#include "util.h"
 
 using namespace std;
 
@@ -20,6 +20,9 @@ void SoftwareRendererImp::draw_svg( SVG& svg ) {
 
   // set top level transformation
   transformation = svg_2_screen;
+
+  buffer = new uint8_t[target_h * target_w * sample_rate * sample_rate * 4];
+  util::supersample(render_target, buffer, target_w, target_h, sample_rate);
 
   // draw all elements
   for ( size_t i = 0; i < svg.elements.size(); ++i ) {
@@ -224,16 +227,13 @@ void SoftwareRendererImp::draw_group( Group& group ) {
 
 void SoftwareRendererImp::rasterize_point( float x, float y, Color color ) {
 
-  // fill in the nearest pixel
-  int sx = (int) floor(x);
-  int sy = (int) floor(y);
-
-  // check bounds
-  if ( sx < 0 || sx >= target_w ) return;
-  if ( sy < 0 || sy >= target_h ) return;
-
-  // fill sample - with alpha blending!
-  ZQ::alpha_blend_pixel(render_target, target_w, target_h, sx, sy, color.r, color.g, color.b, color.a);
+  float point_size = 1.0f;
+  float x0 = x + 0.5f * point_size, y0 = y + 0.5f * point_size;
+  float x1 = x - 0.5f * point_size, y1 = y + 0.5f * point_size;
+  float x2 = x - 0.5f * point_size, y2 = y - 0.5f * point_size;
+  float x3 = x + 0.5f * point_size, y3 = y - 0.5f * point_size;
+  rasterize_triangle(x0, y0, x1, y1, x2, y2, color);
+  rasterize_triangle(x0, y0, x2, y2, x3, y3, color);
 
 }
 
@@ -266,59 +266,28 @@ void SoftwareRendererImp::rasterize_triangle( float x0, float y0,
                                               Color color ) {
   // Task 3: 
   // Implement triangle rasterization
-//  printf("rasterize_triangle called with (%.2f, %.2f), (%.2f, %.2f), (%.2f, %.2f) ", x0, y0, x1, y1, x2, y2);
-//  printf("on %d x %d canvas with sample rate %d\n", target_w, target_h, sample_rate);
+  int super_w = target_w * sample_rate, super_h = target_h * sample_rate;
 
   // get bounding box
-  int x_low = (int)floor(min({x0, x1, x2}));
-  int x_high = (int)ceil(max({x0, x1, x2}));
-  int y_low = (int)floor(min({y0, y1, y2}));
-  int y_high = (int)ceil(max({y0, y1, y2}));
+  int x_low = (int)floor(min({x0, x1, x2})), x_high = (int)ceil(max({x0, x1, x2}));
+  int y_low = (int)floor(min({y0, y1, y2})), y_high = (int)ceil(max({y0, y1, y2}));
   if (x_low < 0) x_low = 0; if (x_high >= target_w) x_high = target_w-1;
   if (y_low < 0) y_low = 0; if (y_high >= target_h) y_high = target_h-1;
   int xs_low = x_low * sample_rate, xs_high = x_high * sample_rate;
   int ys_low = y_low * sample_rate, ys_high = y_high * sample_rate;
 
-  int box_w = x_high - x_low, box_h = y_high - y_low;
-  int super_w = box_w * sample_rate, super_h = box_h * sample_rate;
-//  printf("\tusing a %d x %d bounding box\n", box_w, box_h);
-
-  // make supersampling buffer
-  auto* buffer = new float[super_w * super_h * 4];
-  auto* downsampled = new float[box_w * box_h * 4];
-  fill_n(buffer, super_w * super_h * 4, 0.0f);
-//  printf("\tsupersampling buffer has been made\n");
+  int box_w = xs_high - xs_low, box_h = ys_high - ys_low;
 
   // get triangle vertices in supersampling space
   float xs0 = x0 * sample_rate, ys0 = y0 * sample_rate;
   float xs1 = x1 * sample_rate, ys1 = y1 * sample_rate;
   float xs2 = x2 * sample_rate, ys2 = y2 * sample_rate;
 
-  // iterate and do point in triangle test
-  for (int x = 0; x <= super_w; x++) for (int y = 0; y <= super_h; y++) {
-    if (ZQ::point_in_triangle(xs_low + x + 0.5f, ys_low + y + 0.5f, xs0, ys0, xs1, ys1, xs2, ys2)) {
-        buffer[4 * (x + y * super_w)    ] = color.r;
-        buffer[4 * (x + y * super_w) + 1] = color.g;
-        buffer[4 * (x + y * super_w) + 2] = color.b;
-        buffer[4 * (x + y * super_w) + 3] = color.a;
-    }
-  }
-//  printf("\tbuffer is filled\n");
+  // iterate and do point in triangle test and blend
+  for (int xs = 0; xs <= box_w; xs++) for (int ys = 0; ys <= box_h; ys++)
+    if (util::point_in_triangle(xs_low + xs + 0.5f, ys_low + ys + 0.5f, xs0, ys0, xs1, ys1, xs2, ys2))
+      util::alpha_blend_pixel(buffer, super_w, super_h, xs_low + xs, ys_low + ys, color.r, color.g, color.b, color.a);
 
-  // downsample and blending
-  ZQ::downsample(buffer, downsampled, box_w, box_h, sample_rate);
-//  printf("\tdownsampled\n");
-
-  float r, g, b, a;
-  for (int x = 0; x < box_w; x++) for (int y = 0; y < box_h; y++) {
-    r = downsampled[4 * (x + y * box_w)    ];
-    g = downsampled[4 * (x + y * box_w) + 1];
-    b = downsampled[4 * (x + y * box_w) + 2];
-    a = downsampled[4 * (x + y * box_w) + 3];
-    ZQ::alpha_blend_pixel(render_target, target_w, target_h, x_low + x, y_low + y, r, g, b, a);
-  }
-
-//  printf("\tblended\n");
 }
 
 void SoftwareRendererImp::rasterize_image( float x0, float y0,
@@ -335,7 +304,7 @@ void SoftwareRendererImp::resolve( void ) {
   // Task 4: 
   // Implement supersampling
   // You may also need to modify other functions marked with "Task 4".
-  return;
+    util::resample(buffer, render_target, target_w, target_h, sample_rate);
 
 }
 
