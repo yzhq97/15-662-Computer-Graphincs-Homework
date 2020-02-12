@@ -6,7 +6,7 @@
 
 namespace util {
 
-  const float eps = 1e-3;
+  const float eps = 1e-9;
 
   float cross_product (float x, float y, float x0, float y0, float x1, float y1);
 

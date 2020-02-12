@@ -26,6 +26,7 @@ void SoftwareRendererImp::draw_svg( SVG& svg ) {
 
   // draw all elements
   for ( size_t i = 0; i < svg.elements.size(); ++i ) {
+    transformation = svg.elements[i]->transform;
     draw_element(svg.elements[i]);
   }
 
@@ -42,6 +43,7 @@ void SoftwareRendererImp::draw_svg( SVG& svg ) {
 
   // resolve and send to render target
   resolve();
+  delete buffer;
 
 }
 
@@ -243,13 +245,13 @@ void SoftwareRendererImp::rasterize_line( float x0, float y0,
 
   // Task 2: 
   // Implement line rasterization
-  float linewidth = 1.0f;
+  float line_width = 1.0f;
 
   // Convert the line to a rectangle
   float vx = x1 - x0, vy = y1 - y0;
   float norm = sqrt(vx * vx + vy * vy);
   float ox = -vy / norm, oy = vx / norm; // orthogonal direction
-  float dx = 0.5f * linewidth * ox, dy = 0.5f * linewidth * oy;
+  float dx = 0.5f * line_width * ox, dy = 0.5f * line_width * oy;
 
   float tx0 = x0 + dx, ty0 = y0 + dy;
   float tx1 = x0 - dx, ty1 = y0 - dy;
