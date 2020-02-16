@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <iostream>
+#include "CMU462.h"
 
 namespace util {
 
@@ -17,6 +18,8 @@ namespace util {
   void resample (uint8_t* buffer, uint8_t* canvas, int canvas_w, int canvas_h, int sample_rate);
 
   void alpha_blend_pixel (uint8_t* target, int target_w, int target_h, int x, int y, float Er, float Eg, float Eb, float Ea);
+
+  CMU462::Matrix3x3 get_translation_matrix (float x, float y);
 }
 
 #endif //DRAWSVG_UTIL_H

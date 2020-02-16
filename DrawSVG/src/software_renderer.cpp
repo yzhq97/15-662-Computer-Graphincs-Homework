@@ -26,7 +26,6 @@ void SoftwareRendererImp::draw_svg( SVG& svg ) {
 
   // draw all elements
   for ( size_t i = 0; i < svg.elements.size(); ++i ) {
-    transformation = svg.elements[i]->transform;
     draw_element(svg.elements[i]);
   }
 
@@ -71,6 +70,9 @@ void SoftwareRendererImp::draw_element( SVGElement* element ) {
   // Task 5 (part 1):
   // Modify this to implement the transformation stack
 
+  Matrix3x3 temp = transformation;
+  transformation = transformation * element->transform;
+
   switch(element->type) {
     case POINT:
       draw_point(static_cast<Point&>(*element));
@@ -99,7 +101,7 @@ void SoftwareRendererImp::draw_element( SVGElement* element ) {
     default:
       break;
   }
-
+  transformation = temp;
 }
 
 

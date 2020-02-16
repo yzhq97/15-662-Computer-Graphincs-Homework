@@ -80,7 +80,7 @@ class SoftwareRendererImp : public SoftwareRenderer {
 
  protected:
 
-  unsigned char* buffer;
+  uint8_t * buffer;
 
  private:
 
