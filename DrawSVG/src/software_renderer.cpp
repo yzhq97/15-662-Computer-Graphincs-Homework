@@ -21,7 +21,7 @@ void SoftwareRendererImp::draw_svg( SVG& svg ) {
   // set top level transformation
   transformation = svg_2_screen;
 
-  buffer = new uint8_t[target_h * target_w * sample_rate * sample_rate * 4];
+  buffer = new float[target_h * target_w * sample_rate * sample_rate * 4];
   util::supersample(render_target, buffer, target_w, target_h, sample_rate);
 
   // draw all elements
@@ -299,6 +299,20 @@ void SoftwareRendererImp::rasterize_image( float x0, float y0,
                                            Texture& tex ) {
   // Task 6: 
   // Implement image rasterization
+  int super_w = target_w * sample_rate, super_h = target_h * sample_rate;
+
+  int xs0 = (int)round(x0 * sample_rate), ys0 = (int)round(y0 * sample_rate);
+  int xs1 = (int)round(x1 * sample_rate), ys1 = (int)round(y1 * sample_rate);
+  int ws = xs1 - xs0, hs = ys1 - ys0;
+  float u, v;
+  Color color;
+
+  for (int xs = max(0, xs0); xs < min((int)super_w, xs1); xs++)
+    for (int ys = max(0, ys0); ys < min((int)super_h, ys1); ys++) {
+      u = 1.0f * (xs - xs0) / ws; v = 1.0f * (ys - ys0) / hs;
+      color = sampler->sample_bilinear(tex, u, v, 0);
+      util::alpha_blend_pixel(buffer, super_w, super_h, xs, ys, color.r, color.g, color.b, color.a);
+  }
 
 }
 

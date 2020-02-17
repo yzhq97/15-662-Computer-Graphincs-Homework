@@ -5,6 +5,8 @@
 #include <iostream>
 #include <algorithm>
 
+#include "util.h"
+
 using namespace std;
 
 namespace CMU462 {
@@ -64,16 +66,26 @@ void Sampler2DImp::generate_mips(Texture& tex, int startLevel) {
 
   }
 
-  // fill all 0 sub levels with interchanging colors (JUST AS A PLACEHOLDER)
-  Color colors[3] = { Color(1,0,0,1), Color(0,1,0,1), Color(0,0,1,1) };
   for(size_t i = 1; i < tex.mipmap.size(); ++i) {
-
-    Color c = colors[i % 3];
     MipLevel& mip = tex.mipmap[i];
-
-    for(size_t i = 0; i < 4 * mip.width * mip.height; i += 4) {
-      float_to_uint8( &mip.texels[i], &c.r );
+    MipLevel& mips = tex.mipmap[i-1];
+    int us, vs;
+    float r, g, b, a;
+    for (int u = 0; u < mip.width; u++) for (int v = 0; v < mip.height; v++) {
+      r = g = b = a = 0.0f;
+      for (int dx = 0; dx < 2; dx++) for (int dy = 0; dy < 2; dy++) {
+          us = 2 * u + dx; vs = 2 * v + dy;
+          r += mips.texels[4 * (us + vs * mips.width)    ] / 255.0f;
+          g += mips.texels[4 * (us + vs * mips.width) + 1] / 255.0f;
+          b += mips.texels[4 * (us + vs * mips.width) + 2] / 255.0f;
+          a += mips.texels[4 * (us + vs * mips.width) + 3] / 255.0f;
+      }
+      mip.texels[4 * (u + v * mip.width)    ] = util::float_to_uint8(r/4.0f);
+      mip.texels[4 * (u + v * mip.width) + 1] = util::float_to_uint8(g/4.0f);
+      mip.texels[4 * (u + v * mip.width) + 2] = util::float_to_uint8(b/4.0f);
+      mip.texels[4 * (u + v * mip.width) + 3] = util::float_to_uint8(a/4.0f);
     }
+
   }
 
 }
@@ -83,20 +95,60 @@ Color Sampler2DImp::sample_nearest(Texture& tex,
                                    int level) {
 
   // Task 6: Implement nearest neighbour interpolation
-  
-  // return magenta for invalid level
-  return Color(1,0,1,1);
+  int ui = int(u * tex.mipmap[level].width);
+  int vi = int(v * tex.mipmap[level].height);
+  float r = tex.mipmap[level].texels[4 * (ui + vi * tex.mipmap[level].width)    ];
+  float g = tex.mipmap[level].texels[4 * (ui + vi * tex.mipmap[level].width) + 1];
+  float b = tex.mipmap[level].texels[4 * (ui + vi * tex.mipmap[level].width) + 2];
+  float a = tex.mipmap[level].texels[4 * (ui + vi * tex.mipmap[level].width) + 3];
+  return {r, g, b, a};
 
 }
 
-Color Sampler2DImp::sample_bilinear(Texture& tex, 
-                                    float u, float v, 
+Color Sampler2DImp::sample_bilinear(Texture& tex,
+                                    float u, float v,
                                     int level) {
-  
-  // Task 6: Implement bilinear filtering
 
-  // return magenta for invalid level
-  return Color(1,0,1,1);
+  // Task 6: Implement bilinear filtering
+  auto & texels = tex.mipmap[level].texels;
+  int width = tex.mipmap[level].width, height = tex.mipmap[level].height;
+
+  float ut = u * width, vt = v * height;
+  int u0 = (int)floor(ut), v0 = (int)floor(vt);
+  int u1 = (int)ceil(ut), v1 = (int)ceil(vt);
+  u1 = min(u1, width - 1); v1 = min(v1, height - 1);
+  float ou = ut - u0, ov = vt - v0;
+
+  float r00 = texels[4 * (u0 + v0 * width)    ] / 255.0f;
+  float g00 = texels[4 * (u0 + v0 * width) + 1] / 255.0f;
+  float b00 = texels[4 * (u0 + v0 * width) + 2] / 255.0f;
+  float a00 = texels[4 * (u0 + v0 * width) + 3] / 255.0f;
+  Color c00 = Color(r00, g00, b00, a00);
+
+  float r10 = texels[4 * (u0 + v1 * width)    ] / 255.0f;
+  float g10 = texels[4 * (u0 + v1 * width) + 1] / 255.0f;
+  float b10 = texels[4 * (u0 + v1 * width) + 2] / 255.0f;
+  float a10 = texels[4 * (u0 + v1 * width) + 3] / 255.0f;
+  Color c10 = Color(r10, g10, b10, a10);
+
+  float r01 = texels[4 * (u1 + v0 * width)    ] / 255.0f;
+  float g01 = texels[4 * (u1 + v0 * width) + 1] / 255.0f;
+  float b01 = texels[4 * (u1 + v0 * width) + 2] / 255.0f;
+  float a01 = texels[4 * (u1 + v0 * width) + 3] / 255.0f;
+  Color c01 = Color(r01, g01, b01, a01);
+
+  float r11 = texels[4 * (u1 + v1 * width)    ] / 255.0f;
+  float g11 = texels[4 * (u1 + v1 * width) + 1] / 255.0f;
+  float b11 = texels[4 * (u1 + v1 * width) + 2] / 255.0f;
+  float a11 = texels[4 * (u1 + v1 * width) + 3] / 255.0f;
+  Color c11 = Color(r11, g11, b11, a11);
+
+  Color c0 = (1.0f - ou) * c00 + ou * c01;
+  Color c1 = (1.0f - ou) * c10 + ou * c11;
+
+  Color c = (1.0f - ov) * c0 + ov * c1;
+
+  return c;
 
 }
 

@@ -80,7 +80,7 @@ class SoftwareRendererImp : public SoftwareRenderer {
 
  protected:
 
-  uint8_t * buffer;
+  float * buffer;
 
  private:
 
