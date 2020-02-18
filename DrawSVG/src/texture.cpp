@@ -85,7 +85,6 @@ void Sampler2DImp::generate_mips(Texture& tex, int startLevel) {
       mip.texels[4 * (u + v * mip.width) + 2] = util::float_to_uint8(b/4.0f);
       mip.texels[4 * (u + v * mip.width) + 3] = util::float_to_uint8(a/4.0f);
     }
-
   }
 
 }
@@ -157,9 +156,20 @@ Color Sampler2DImp::sample_trilinear(Texture& tex,
                                      float u_scale, float v_scale) {
 
   // Task 7: Implement trilinear filtering
+  // u_scale: box_width * sample_rate, v_scale: box_height * sample_rate
+  float scale = sqrt(u_scale * v_scale);
+  float level = 0.5 * log2((1.0f * tex.mipmap[0].width * tex.mipmap[0].height) / (u_scale * v_scale));
+  if (level <= 0) return sample_bilinear(tex, u, v, 0);
 
-  // return magenta for invalid level
-  return Color(1,0,1,1);
+  int level0 = (int)floor(scale), level1 = (int)ceil(scale);
+  Color c0 = sample_bilinear(tex, u, v, level0);
+  Color c1 = sample_bilinear(tex, u, v, level1);
+
+  float scale0 = sqrt(1.0f * tex.mipmap[level0].width * tex.mipmap[level0].height);
+  float scale1 = sqrt(1.0f * tex.mipmap[level1].width * tex.mipmap[level1].height);
+  float ol = (scale - scale0) / (scale1 - scale0);
+
+  return (1.0f - ol) * c0 + ol * c1;
 
 }
 
