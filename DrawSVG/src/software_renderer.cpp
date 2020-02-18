@@ -23,6 +23,7 @@ void SoftwareRendererImp::draw_svg( SVG& svg ) {
 
   buffer = new float[target_h * target_w * sample_rate * sample_rate * 4];
   util::supersample(render_target, buffer, target_w, target_h, sample_rate);
+  util::premultiply_alpha(buffer, buffer, target_w*sample_rate, target_h*sample_rate);
 
   // draw all elements
   for ( size_t i = 0; i < svg.elements.size(); ++i ) {
@@ -323,8 +324,12 @@ void SoftwareRendererImp::resolve( void ) {
   // Task 4: 
   // Implement supersampling
   // You may also need to modify other functions marked with "Task 4".
-    util::resample(buffer, render_target, target_w, target_h, sample_rate);
+  auto * resampled = new float[4 * target_w * target_h];
+  util::resample(buffer, resampled, target_w, target_h, sample_rate); // downsample
+  util::depremultiply_alpha(resampled, resampled, target_w, target_h); // depremultiply
+  util::resample(resampled, render_target, target_w, target_h, 1); // convert to uint8
 
+  delete[] resampled;
 }
 
 

@@ -42,26 +42,6 @@ namespace util {
       }
   }
 
-  void resample (uint8_t* buffer, uint8_t* canvas, int canvas_w, int canvas_h, int sample_rate) {
-    int xb, yb, xc, yc;
-    int r, g, b, a;
-    int buffer_w = canvas_w * sample_rate;
-    for (xc = 0; xc < canvas_w; xc++) for (yc = 0; yc < canvas_h; yc++) {
-      r = g = b = a = 0;
-      for (int dx = 0; dx < sample_rate; dx++) for (int dy = 0; dy < sample_rate; dy++) {
-          xb = xc * sample_rate + dx; yb = yc * sample_rate + dy;
-          r += buffer[4 * (xb + yb * buffer_w)    ];
-          g += buffer[4 * (xb + yb * buffer_w) + 1];
-          b += buffer[4 * (xb + yb * buffer_w) + 2];
-          a += buffer[4 * (xb + yb * buffer_w) + 3];
-      }
-      canvas[4 * (xc + yc * canvas_w)    ] = (uint8_t) (r / (sample_rate * sample_rate));
-      canvas[4 * (xc + yc * canvas_w) + 1] = (uint8_t) (g / (sample_rate * sample_rate));
-      canvas[4 * (xc + yc * canvas_w) + 2] = (uint8_t) (b / (sample_rate * sample_rate));
-      canvas[4 * (xc + yc * canvas_w) + 3] = (uint8_t) (a / (sample_rate * sample_rate));
-    }
-  }
-
   void resample (float* buffer, uint8_t* canvas, int canvas_w, int canvas_h, int sample_rate) {
     int xb, yb, xc, yc;
     float r, g, b, a;
@@ -82,29 +62,55 @@ namespace util {
       }
   }
 
-  void alpha_blend_pixel (uint8_t* target, int target_w, int target_h, int x, int y, float Er, float Eg, float Eb, float Ea) {
-    float Cr = target[4 * (x + y * target_w)    ] / 255.0f;
-    float Cg = target[4 * (x + y * target_w) + 1] / 255.0f;
-    float Cb = target[4 * (x + y * target_w) + 2] / 255.0f;
-    float Ca = target[4 * (x + y * target_w) + 3] / 255.0f;
-    float r = Ea * Er + (1.0f - Ea) * Cr;
-    float g = Ea * Eg + (1.0f - Ea) * Cg;
-    float b = Ea * Eb + (1.0f - Ea) * Cb;
-    float a = 1.0f - (1.0f - Ea) * (1.0f - Ca);
-    target[4 * (x + y * target_w)    ] = float_to_uint8(r);
-    target[4 * (x + y * target_w) + 1] = float_to_uint8(g);
-    target[4 * (x + y * target_w) + 2] = float_to_uint8(b);
-    target[4 * (x + y * target_w) + 3] = float_to_uint8(a);
+  void resample (float* buffer, float* canvas, int canvas_w, int canvas_h, int sample_rate) {
+    int xb, yb, xc, yc;
+    float r, g, b, a;
+    int buffer_w = canvas_w * sample_rate;
+    for (xc = 0; xc < canvas_w; xc++) for (yc = 0; yc < canvas_h; yc++) {
+        r = g = b = a = 0;
+        for (int dx = 0; dx < sample_rate; dx++) for (int dy = 0; dy < sample_rate; dy++) {
+            xb = xc * sample_rate + dx; yb = yc * sample_rate + dy;
+            r += buffer[4 * (xb + yb * buffer_w)    ];
+            g += buffer[4 * (xb + yb * buffer_w) + 1];
+            b += buffer[4 * (xb + yb * buffer_w) + 2];
+            a += buffer[4 * (xb + yb * buffer_w) + 3];
+          }
+        canvas[4 * (xc + yc * canvas_w)    ] = r;
+        canvas[4 * (xc + yc * canvas_w) + 1] = g;
+        canvas[4 * (xc + yc * canvas_w) + 2] = b;
+        canvas[4 * (xc + yc * canvas_w) + 3] = a;
+      }
   }
 
-  void alpha_blend_pixel (float* target, int target_w, int target_h, int x, int y, float Er, float Eg, float Eb, float Ea) {
-    float Cr = target[4 * (x + y * target_w)    ];
-    float Cg = target[4 * (x + y * target_w) + 1];
-    float Cb = target[4 * (x + y * target_w) + 2];
-    float Ca = target[4 * (x + y * target_w) + 3];
-    target[4 * (x + y * target_w)    ] = Ea * Er + (1.0f - Ea) * Cr;
-    target[4 * (x + y * target_w) + 1] = Ea * Eg + (1.0f - Ea) * Cg;
-    target[4 * (x + y * target_w) + 2] = Ea * Eb + (1.0f - Ea) * Cb;
-    target[4 * (x + y * target_w) + 3] = 1.0f - (1.0f - Ea) * (1.0f - Ca);
+  void premultiply_alpha(float* source, float* target, int w, int h) {
+    for (int x = 0; x < w; x++) for (int y = 0; y < h; y++) {
+      target[4 * (x + y * w)    ] = source[4 * (x + y * w)    ] * source[4 * (x + y * w) + 3];
+      target[4 * (x + y * w) + 1] = source[4 * (x + y * w) + 1] * source[4 * (x + y * w) + 3];
+      target[4 * (x + y * w) + 2] = source[4 * (x + y * w) + 2] * source[4 * (x + y * w) + 3];
+      target[4 * (x + y * w) + 3] = source[4 * (x + y * w) + 3];
+    }
+  }
+
+  void depremultiply_alpha(float* source, float* target, int w, int h) {
+    float a;
+    for (int x = 0; x < w; x++) for (int y = 0; y < h; y++) {
+      a = source[4 * (x + y * w) + 3] + eps;
+      target[4 * (x + y * w)    ] = source[4 * (x + y * w)    ] / a;
+      target[4 * (x + y * w) + 1] = source[4 * (x + y * w) + 1] / a;
+      target[4 * (x + y * w) + 2] = source[4 * (x + y * w) + 2] / a;
+      target[4 * (x + y * w) + 3] = source[4 * (x + y * w) + 3];
+    }
+  }
+
+  void alpha_blend_pixel (float* target, int w, int h, int x, int y, float Er, float Eg, float Eb, float Ea) {
+    Er *= Ea; Eg *= Ea; Eb *= Ea;
+    float Ca = target[4 * (x + y * w) + 3];
+    float Cr = target[4 * (x + y * w)    ];
+    float Cg = target[4 * (x + y * w) + 1];
+    float Cb = target[4 * (x + y * w) + 2];
+    target[4 * (x + y * w)    ] = Er + (1.0f - Ea) * Cr;
+    target[4 * (x + y * w) + 1] = Eg + (1.0f - Ea) * Cg;
+    target[4 * (x + y * w) + 2] = Eb + (1.0f - Ea) * Cb;
+    target[4 * (x + y * w) + 3] = Ea + (1.0f - Ea) * Ca;
   }
 }
