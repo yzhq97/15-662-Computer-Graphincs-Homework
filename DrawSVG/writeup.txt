@@ -1,4 +1,4 @@
-AndrewID: ??????
+AndrewID: zhuoqiay
 
 Task 1:
 
@@ -22,7 +22,7 @@ Task 5:
 
 Task 6:
 
-    Fully implemented.
+    The picture looks the same but there is a slight offset towards the top left corner.
 
 Task 7:
 
@@ -34,8 +34,17 @@ Task 8:
 
 Extra credit:
 
-    I completed the following extra credit work... (or N/A)
+    task 3 "specifying line width"
+    I regarded a line segment as a long thin rectangle, and then factorize it into two triangles.
+    This way the line widths are maintained when supersampled. The line width can be controlled by tweaking the variable "line_width" in "rasterize_line".
 
 Any other comments and considerations:
 
-    ....
+    For task 3, I feel it would be very helpful if we covered "barycentric coordinates" earlier. A coordinate system inside the triangle makes the whole idea clear.
+
+    For task 5, the README mentioned a few different spaces: screen space, SVG space / local space, SVG canvas coordinate space, normalized device coordinate space. It would be better if these terms are defined at the beginning.
+    The parameter "vspan" is also a little confusing, I wondered why there isn't an "hspan", so it may be better to mention that aspect ratio is maintained in these view box transformations.
+
+    For task 7, the changes after implementing trilinear filtering is subtle. Maybe a different test svg could make the effects more obvious, e.g., removing aliases.
+
+    Thanks!

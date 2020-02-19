@@ -311,7 +311,6 @@ void SoftwareRendererImp::rasterize_image( float x0, float y0,
   for (int xs = max(0, xs0); xs < min((int)super_w, xs1); xs++)
     for (int ys = max(0, ys0); ys < min((int)super_h, ys1); ys++) {
       u = 1.0f * (xs - xs0) / ws; v = 1.0f * (ys - ys0) / hs;
-//      color = sampler->sample_bilinear(tex, u, v, 0);
       color = sampler->sample_trilinear(tex, u, v, ws, hs);
       util::alpha_blend_pixel(buffer, super_w, super_h, xs, ys, color.r, color.g, color.b, color.a);
   }

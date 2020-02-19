@@ -161,7 +161,7 @@ Color Sampler2DImp::sample_trilinear(Texture& tex,
   float level = 0.5 * log2((1.0f * tex.mipmap[0].width * tex.mipmap[0].height) / (u_scale * v_scale));
   if (level <= 0) return sample_bilinear(tex, u, v, 0);
 
-  int level0 = (int)floor(scale), level1 = (int)ceil(scale);
+  int level0 = (int)floor(level), level1 = (int)ceil(level);
   Color c0 = sample_bilinear(tex, u, v, level0);
   Color c1 = sample_bilinear(tex, u, v, level1);
 
