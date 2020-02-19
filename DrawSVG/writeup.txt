@@ -22,11 +22,11 @@ Task 5:
 
 Task 6:
 
-    The picture looks the same but there is a slight offset towards the top left corner.
+    The image looks the same but there is a slight offset towards the top left corner.
 
 Task 7:
 
-    Fully implemented.
+    The image looks the same but there is a slight offset towards the top left corner.
 
 Task 8:
 
