@@ -26,6 +26,9 @@ set(APPLICATION_SOURCE
     static_scene/environment_light.cpp
     static_scene/light.cpp
 
+    # utils
+    util.h
+
     # MeshEdit
     halfEdgeMesh.cpp
     meshEdit.cpp

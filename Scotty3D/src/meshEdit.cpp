@@ -1,13 +1,15 @@
+#include <stdio.h>
 #include <float.h>
 #include <assert.h>
 #include "meshEdit.h"
 #include "mutablePriorityQueue.h"
 #include "error_dialog.h"
+#include "util.h"
 
 namespace CMU462 {
 
 VertexIter HalfedgeMesh::splitEdge(EdgeIter e0) {
-  // TODO: (meshEdit)
+  // TODO: (meshEdit)  PART 1
   // This method should split the given edge and return an iterator to the
   // newly inserted vertex. The halfedge of this vertex should point along
   // the edge that was split, rather than the new edges.
@@ -17,7 +19,7 @@ VertexIter HalfedgeMesh::splitEdge(EdgeIter e0) {
 }
 
 VertexIter HalfedgeMesh::collapseEdge(EdgeIter e) {
-  // TODO: (meshEdit)
+  // TODO: (meshEdit) PART 1
   // This method should collapse the given edge and return an iterator to
   // the new vertex created by the collapse.
 
@@ -51,12 +53,64 @@ FaceIter HalfedgeMesh::eraseEdge(EdgeIter e) {
 }
 
 EdgeIter HalfedgeMesh::flipEdge(EdgeIter e0) {
-  // TODO: (meshEdit)
   // This method should flip the given edge and return an iterator to the
   // flipped edge.
 
-  showError("flipEdge() not implemented.");
-  return EdgeIter();
+  if (e0->isBoundary()) return e0;
+
+  // check if this would yield a face with 0 area
+
+  // COLLECT
+  HalfedgeIter h0 = e0->halfedge(); HalfedgeIter h1 = h0->twin();
+  HalfedgeIter h2 = h0->next(); HalfedgeIter h3 = h2->twin();
+  HalfedgeIter h4 = h1->next(); HalfedgeIter h5 = h4->twin();
+  HalfedgeIter h6 = util::find_previous(h0); HalfedgeIter h7 = h6->twin();
+  HalfedgeIter h8 = util::find_previous(h1); HalfedgeIter h9 = h8->twin();
+
+  VertexIter v0 = h1->vertex();
+  VertexIter v1 = h3->vertex();
+  VertexIter v2 = h0->vertex();
+  VertexIter v3 = h5->vertex();
+  VertexIter v4 = h6->vertex();
+  VertexIter v5 = h8->vertex();
+
+  EdgeIter e1 = h2->edge();
+  EdgeIter e2 = h4->edge();
+  EdgeIter e3 = h6->edge();
+  EdgeIter e4 = h8->edge();
+
+  FaceIter f0 = h0->face();
+  FaceIter f1 = h1->face();
+
+  // ASSIGN
+  h0->setNeighbors(e0, h1, v3, f0, h2->next());
+  h1->setNeighbors(e0, h0, v1, f1, h4->next());
+  h2->setNeighbors(e1, h3, v0, f1, h1);
+  h3->setNeighbors(e1, h2, v1, h3->face(), h3->next());
+  h4->setNeighbors(e2, h5, v2, f0, h0);
+  h5->setNeighbors(e2, h4, v3, h5->face(), h5->next());
+  h6->setNeighbors(e3, h7, v4, f0, h4);
+  h7->setNeighbors(e3, h6, v2, h7->face(), h7->next());
+  h8->setNeighbors(e4, h9, v5, f1, h2);
+  h9->setNeighbors(e4, h8, v0, h9->face(), h9->next());
+
+  v0->halfedge() = h2;
+  v1->halfedge() = h1;
+  v2->halfedge() = h4;
+  v3->halfedge() = h0;
+  v4->halfedge() = h6;
+  v5->halfedge() = h8;
+
+  e0->halfedge() = h0;
+  e1->halfedge() = h2;
+  e2->halfedge() = h4;
+  e3->halfedge() = h6;
+  e4->halfedge() = h8;
+
+  f0->halfedge() = h0;
+  f1->halfedge() = h1;
+
+  return e0;
 }
 
 void HalfedgeMesh::subdivideQuad(bool useCatmullClark) {
@@ -274,6 +328,7 @@ FaceIter HalfedgeMesh::bevelEdge(EdgeIter e) {
 }
 
 FaceIter HalfedgeMesh::bevelFace(FaceIter f) {
+  // TODO PART 1
   // TODO This method should replace the face f with an additional, inset face
   // (and ring of faces around it), corresponding to a bevel operation. It
   // should return the new face.  NOTE: This method is responsible for updating
