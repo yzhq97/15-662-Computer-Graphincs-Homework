@@ -23,7 +23,35 @@ VertexIter HalfedgeMesh::collapseEdge(EdgeIter e) {
   // This method should collapse the given edge and return an iterator to
   // the new vertex created by the collapse.
 
-  showError("collapseEdge() not implemented.");
+  // COLLECT
+  HalfedgeIter h0 = e->halfedge(); HalfedgeIter h1 = h0->twin();
+  HalfedgeIter h2 = h0->next(); HalfedgeIter h3 = h2->twin();
+  HalfedgeIter h4 = util::find_previous(h0); HalfedgeIter h5 = h4->twin();
+  HalfedgeIter h6 = h1->next(); HalfedgeIter h7 = h6->twin();
+  HalfedgeIter h8 = util::find_previous(h1); HalfedgeIter h9 = h8->twin();
+
+  EdgeIter e1 = h2->edge();
+  EdgeIter e2 = h4->edge();
+  EdgeIter e3 = h6->edge();
+  EdgeIter e4 = h8->edge();
+
+  VertexIter v0 = h1->vertex();
+  VertexIter v1 = h0->vertex();
+  VertexIter v2 = h3->vertex();
+  VertexIter v3 = h4->vertex();
+  VertexIter v4 = h7->vertex();
+  VertexIter v5 = h8->vertex();
+
+  FaceIter f0 = h0->face();
+  FaceIter f1 = h1->face();
+
+  // CREATE
+  
+
+  // ASSIGN
+
+  // DELETE
+
   return VertexIter();
 }
 
@@ -109,6 +137,8 @@ EdgeIter HalfedgeMesh::flipEdge(EdgeIter e0) {
 
   f0->halfedge() = h0;
   f1->halfedge() = h1;
+
+//  checkConsistency();
 
   return e0;
 }

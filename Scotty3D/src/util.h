@@ -8,8 +8,10 @@ using namespace std;
 
 namespace util {
   HalfedgeIter find_previous(HalfedgeIter h) {
-    HalfedgeIter p = h->next();
-    while (p->next() != h) p = p->next();
+    int degree = h->face()->degree();
+    HalfedgeIter p = h;
+    for (int i = 0; i < degree - 1; i++) p = p->next();
+    //    while (p->next() != h) p = p->next();
     return p;
   }
 }
