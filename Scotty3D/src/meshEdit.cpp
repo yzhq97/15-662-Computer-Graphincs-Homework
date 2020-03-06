@@ -13,6 +13,8 @@ VertexIter HalfedgeMesh::splitEdge(EdgeIter e0) {
   // newly inserted vertex. The halfedge of this vertex should point along
   // the edge that was split, rather than the new edges.
 
+  if (e0->isBoundary()) return e0->halfedge()->vertex();
+
   // COLLECT
 
   HalfedgeIter h0 = e0->halfedge(); HalfedgeIter h1 = h0->twin();
@@ -58,7 +60,7 @@ VertexIter HalfedgeMesh::splitEdge(EdgeIter e0) {
   FaceIter f5 = newFace();
 
   // ASSIGN NEW
-  v5->position = (v0->position + v1->position) / 2.0;
+  v5->position = (v0->position + v1->position) / 2.0f;
 
   h10->setNeighbors(e5, h11, v5, f2, h2);
   h11->setNeighbors(e5, h10, v0, f5, h17);
@@ -119,13 +121,110 @@ VertexIter HalfedgeMesh::splitEdge(EdgeIter e0) {
 }
 
 VertexIter HalfedgeMesh::collapseEdge(EdgeIter e) {
-  // TODO: (meshEdit) PART 1
   // This method should collapse the given edge and return an iterator to
   // the new vertex created by the collapse.
 
+  if (e->isBoundary()) return e->halfedge()->vertex();
 
+  // COLLECT
+  HalfedgeIter hp = e->halfedge(); HalfedgeIter hq = hp->twin();
+  VertexIter vp = hp->vertex(); VertexIter vq = hq->vertex();
+  FaceIter fp = hp->face(); FaceIter fq = hq->face();
+  int p_degree = fp->degree(); int q_degree = fq->degree();
 
-  return VertexIter();
+  if (p_degree == 3 && q_degree == 3) {
+    showError("cannot collapse this edge", false);
+    return e->halfedge()->vertex();
+  }
+
+  HalfedgeIter hp00, hp01, hp10, hp11;
+  HalfedgeIter hq00, hq01, hq10, hq11;
+  HalfedgeIter hp_prev, hq_prev;
+  EdgeIter ep0, ep1, eq0, eq1;
+  VertexIter vpp, vqq;
+
+  if (p_degree == 3) {
+    hp00 = hp->next(); hp01 = hp00->twin();
+    hp10 = hp00->next(); hp11 = hp10->twin();
+    ep0 = hp00->edge(); ep1 = hp10->edge();
+    vpp = hp10->vertex();
+  } else {
+    hp_prev = util::find_previous(hp);
+  }
+
+  if (q_degree == 3) {
+    hq00 = hq->next(); hq01 = hq00->twin();
+    hq10 = hq00->next(); hq11 = hq10->twin();
+    eq0 = hp00->edge(); eq1 = hp10->edge();
+    vqq = hq10->vertex();
+  } else {
+    hq_prev = util::find_previous(hq);
+  }
+
+  // NEW
+  VertexIter v = newVertex();
+  EdgeIter ep, eq;
+  if (p_degree == 3) ep = newEdge();
+  if (q_degree == 3) eq = newEdge();
+
+  // ASSIGN
+  v->position = (vp->position + vq->position) / 2.0f;
+
+  if (p_degree == 3) {
+    hp11->setNeighbors(ep, hp01, v, hp11->face(), hp11->next());
+    hp01->setNeighbors(ep, hp11, vpp, hp01->face(), hp01->next());
+    ep->halfedge() = hp01;
+    v->halfedge() = hp11;
+  } else {
+    hp_prev->next() = hp->next();
+  }
+
+  if (q_degree == 3) {
+    hq11->setNeighbors(eq, hq01, v, hq11->face(), hq11->next());
+    hq01->setNeighbors(eq, hq11, vqq, hq01->face(), hq01->next());
+    eq->halfedge() = hq01;
+    v->halfedge() = hq11;
+  } else {
+    hq_prev->next() = hq->next();
+  }
+
+  if (p_degree > 3 && q_degree > 3) v->halfedge() = vp->halfedge()->twin()->next();
+
+  HalfedgeIter p = vp->halfedge();
+  do {
+    p->vertex() = v;
+    p = p->twin()->next();
+  } while (p != vp->halfedge());
+
+  HalfedgeIter q = vq->halfedge();
+  do {
+    q->vertex() = v;
+    q = q->twin()->next();
+  } while (q != vq->halfedge());
+
+  // DELETE
+
+  deleteEdge(e);
+  deleteVertex(vp);
+  deleteVertex(vq);
+  deleteHalfedge(hp);
+  deleteHalfedge(hq);
+
+  if (p_degree == 3) {
+    deleteEdge(ep0); deleteEdge(ep1);
+    deleteHalfedge(hp00); deleteHalfedge(hp10);
+    deleteFace(fp);
+  }
+
+  if (q_degree == 3) {
+    deleteEdge(eq0); deleteEdge(eq1);
+    deleteHalfedge(hq00); deleteHalfedge(hq10);
+    deleteFace(fq);
+  }
+
+//  checkConsistency();
+
+  return v;
 }
 
 VertexIter HalfedgeMesh::collapseFace(FaceIter f) {
@@ -158,8 +257,6 @@ EdgeIter HalfedgeMesh::flipEdge(EdgeIter e0) {
   // flipped edge.
 
   if (e0->isBoundary()) return e0;
-
-  // check if this would yield a face with 0 area
 
   // COLLECT
   HalfedgeIter h0 = e0->halfedge(); HalfedgeIter h1 = h0->twin();
@@ -431,17 +528,69 @@ FaceIter HalfedgeMesh::bevelEdge(EdgeIter e) {
 }
 
 FaceIter HalfedgeMesh::bevelFace(FaceIter f) {
-  // TODO PART 1
-  // TODO This method should replace the face f with an additional, inset face
   // (and ring of faces around it), corresponding to a bevel operation. It
-  // should return the new face.  NOTE: This method is responsible for updating
-  // the *connectivity* of the mesh only---it does not need to update the vertex
+  // should return temp new face.  NOTE: This method is responsible for updating
+  // temp *connectivity* of temp mesh only---it does not need to update temp vertex
   // positions.  These positions will be updated in
   // HalfedgeMesh::bevelFaceComputeNewPositions (which you also have to
   // implement!)
 
-  showError("bevelFace() not implemented.");
-  return facesBegin();
+  if (f->isBoundary()) return f;
+
+  int degree = f->degree();
+
+  HalfedgeIter fhe = f->halfedge();
+
+  HalfedgeIter temp;
+  vector<VertexIter> new_v;
+  vector<FaceIter> new_f;
+  vector<HalfedgeIter> new_he;
+  vector<EdgeIter> new_e;
+
+  // NEW
+  for (int i = 0; i < degree; i++)
+  {
+    new_v.push_back(newVertex());
+    new_f.push_back(newFace());
+    new_he.push_back(newHalfedge());
+    new_he.push_back(newHalfedge());
+    new_he.push_back(newHalfedge());
+    new_he.push_back(newHalfedge());
+    new_e.push_back(newEdge());
+    new_e.push_back(newEdge());
+  }
+
+  // ASSIGN
+  for (int i = 0; i < degree; i++)
+  {
+
+    // ASSIGN OLD
+    fhe->face() = new_f[i];
+    fhe->next()->vertex()->halfedge() = new_he[4 * i];
+
+    // ASSIGN NEW
+    new_f[i]->halfedge() = new_he[4 * i + 2];
+    new_e[2 * i]->halfedge() = new_he[4 * i + 1];
+    new_e[2 * i + 1]->halfedge() = new_he[4 * i + 2];
+    new_v[i]->halfedge() = new_he[4 * i + 1];
+
+    new_he[4 * i]->setNeighbors(new_e[2 * i], new_he[4 * i + 1], fhe->next()->vertex(), new_f[i], new_he[4 * i + 2]);
+    new_he[4 * i + 1]->setNeighbors(new_e[2 * i], new_he[4 * i], new_v[i], new_f[(i + 1) % degree], fhe->next());
+    new_he[4 * i + 2]->setNeighbors(new_e[2 * i + 1], new_he[4 * i + 3], new_v[i], new_f[i], new_he[4 * ((i + degree - 1) % degree) + 1]);
+    new_he[4 * i + 3]->setNeighbors(new_e[2 * i + 1], new_he[4 * i + 2], new_v[(i + degree - 1) % degree], f, new_he[4 * ((i + 1) % degree) + 3]);
+
+    new_v[i]->position = fhe->next()->vertex()->position;
+
+    temp = fhe;
+    fhe = fhe->next();
+    temp->next() = new_he[4 * i];
+  }
+
+  f->halfedge() = new_he[3];
+
+//  checkConsistency();
+
+  return f;
 }
 
 
@@ -469,6 +618,18 @@ void HalfedgeMesh::bevelFaceComputeNewPositions(
   //    position correponding to vertex i
   // }
   //
+
+  FaceIter f = newHalfedges[0]->twin()->next()->twin()->face();
+
+  Vector3D f_norm = f->normal();
+  Vector3D f_center = f->centroid();
+
+  int n = originalVertexPositions.size();
+
+  for (int i = 0; i < n; i++) {
+    Vector3D pi = originalVertexPositions[i];
+    newHalfedges[i]->vertex()->position = newHalfedges[i]->vertex()->position + f_norm * normalShift + (f_center - pi) * tangentialInset;
+  }
 
 }
 

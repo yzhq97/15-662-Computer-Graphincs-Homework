@@ -1,0 +1,21 @@
+# flipEdge
+
+Correctly implemented. Only problem is sometimes flipEdge will cause some surfaces to have 0 areas.
+I have not implemented a checking mechanism to prevent this.
+
+# splitEdge
+
+Correctly implemented.
+
+# edgeCollapse
+
+Works when the two faces attached to the edge are not triangles. When it works,  I can correctly use next and twin to browse through half-edges.
+I realized that the triangle case is equivalent to doing a faceCollapse on the triangle. If had more time, I would implement face collapse first.
+
+# faceBevel
+
+Correctly implemented.
+
+# Modeling
+
+Made a bird like creature.
