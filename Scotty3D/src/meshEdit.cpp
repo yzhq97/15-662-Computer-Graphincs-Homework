@@ -8,6 +8,29 @@
 
 namespace CMU462 {
 
+std::set<int> HalfedgeMesh::getVertexRing(VertexCIter Vertices) {
+  // Iterate over vertices in the 1-ring of v,
+  // inserting vertex->index
+  // to the vertex ring set, OneRing
+  assignSubdivisionIndices();
+  std::set<int> OneRing;
+
+  HalfedgeCIter h = Vertices->halfedge();     // get one of the outgoing halfedges of the vertex
+  do {
+    HalfedgeCIter h_twin = h->twin();// get the vertex of the current halfedge
+    VertexCIter v = h_twin->vertex();// vertex is 'source' of the half edge.
+    // so h->vertex() is v,
+    // whereas h_twin->vertex() is the neighbor vertex.
+    //cout << " index= " << v->index << " pos = " << v->position << endl;      // print the vertex position
+    OneRing.insert(v->index);               // insert the vertex to the one ring set.
+
+    h = h_twin->next();              // move to the next outgoing halfedge of the vertex.
+  } while(h != Vertices->halfedge());         // keep going until we're back at the beginning
+
+
+  return OneRing;
+}
+
 VertexIter HalfedgeMesh::splitEdge(EdgeIter e0) {
   // This method should split the given edge and return an iterator to the
   // newly inserted vertex. The halfedge of this vertex should point along
@@ -124,107 +147,259 @@ VertexIter HalfedgeMesh::collapseEdge(EdgeIter e) {
   // This method should collapse the given edge and return an iterator to
   // the new vertex created by the collapse.
 
-  if (e->isBoundary()) return e->halfedge()->vertex();
+  auto vt1 = e->halfedge()->vertex();
+  auto vt2 = e->halfedge()->twin()->vertex();
 
-  // COLLECT
-  HalfedgeIter hp = e->halfedge(); HalfedgeIter hq = hp->twin();
-  VertexIter vp = hp->vertex(); VertexIter vq = hq->vertex();
-  FaceIter fp = hp->face(); FaceIter fq = hq->face();
-  int p_degree = fp->degree(); int q_degree = fq->degree();
+  // get intersection of the one ring of vt1 and vt2
+  int num_one_ring_shared_adjacent_verts = 0;
+  std::set<int> ring_vt1 = HalfedgeMesh::getVertexRing(vt1);
+  std::set<int> ring_vt2 = HalfedgeMesh::getVertexRing(vt2);
 
-  if (p_degree == 3 && q_degree == 3) {
-    showError("cannot collapse this edge", false);
+  //int len1 = ring_vt1.size();
+  //int len2 = ring_vt2.size();
+  //std::sort (ring_vt1.begin(), ring_vt1.end() ); // already sorted
+
+  set<int> intersect;
+  set_intersection(ring_vt1.begin(),ring_vt1.end(),
+                   ring_vt2.begin(),ring_vt2.end(),
+                   std::inserter(intersect,intersect.begin()));
+
+  num_one_ring_shared_adjacent_verts = intersect.size();
+  cout << "One Ring Intersection = " << num_one_ring_shared_adjacent_verts << endl;
+
+  // for (auto item = intersect.begin(); item != intersect.end(); item++ ) {
+  //    cout << *item << endl;
+  // }
+
+  if (num_one_ring_shared_adjacent_verts != 2) {
+    cout << "Non-manifold Edge Collapse Requested" << endl;
+    e->halfedge()->vertex()->collapseSuccess = false;
     return e->halfedge()->vertex();
   }
 
-  HalfedgeIter hp00, hp01, hp10, hp11;
-  HalfedgeIter hq00, hq01, hq10, hq11;
-  HalfedgeIter hp_prev, hq_prev;
-  EdgeIter ep0, ep1, eq0, eq1;
-  VertexIter vpp, vqq;
 
-  if (p_degree == 3) {
-    hp00 = hp->next(); hp01 = hp00->twin();
-    hp10 = hp00->next(); hp11 = hp10->twin();
-    ep0 = hp00->edge(); ep1 = hp10->edge();
-    vpp = hp10->vertex();
-  } else {
-    hp_prev = util::find_previous(hp);
-  }
+  auto h = e->halfedge();
+  auto h_twin = h->twin();
+  auto newVtx = h->vertex();
+  auto delVtx = h_twin->vertex();
 
-  if (q_degree == 3) {
-    hq00 = hq->next(); hq01 = hq00->twin();
-    hq10 = hq00->next(); hq11 = hq10->twin();
-    eq0 = hp00->edge(); eq1 = hp10->edge();
-    vqq = hq10->vertex();
-  } else {
-    hq_prev = util::find_previous(hq);
-  }
-
-  // NEW
-  VertexIter v = newVertex();
-  EdgeIter ep, eq;
-  if (p_degree == 3) ep = newEdge();
-  if (q_degree == 3) eq = newEdge();
-
-  // ASSIGN
-  v->position = (vp->position + vq->position) / 2.0f;
-
-  if (p_degree == 3) {
-    hp11->setNeighbors(ep, hp01, v, hp11->face(), hp11->next());
-    hp01->setNeighbors(ep, hp11, vpp, hp01->face(), hp01->next());
-    ep->halfedge() = hp01;
-    v->halfedge() = hp11;
-  } else {
-    hp_prev->next() = hp->next();
-  }
-
-  if (q_degree == 3) {
-    hq11->setNeighbors(eq, hq01, v, hq11->face(), hq11->next());
-    hq01->setNeighbors(eq, hq11, vqq, hq01->face(), hq01->next());
-    eq->halfedge() = hq01;
-    v->halfedge() = hq11;
-  } else {
-    hq_prev->next() = hq->next();
-  }
-
-  if (p_degree > 3 && q_degree > 3) v->halfedge() = vp->halfedge()->twin()->next();
-
-  HalfedgeIter p = vp->halfedge();
+  auto h1 = e->halfedge()->next();
+  auto h2 = e->halfedge()->twin()->next();
+  auto h1_twin = h1->twin();
+  auto h2_twin = h2->twin();
+  auto h1_prev = h1;
   do {
-    p->vertex() = v;
-    p = p->twin()->next();
-  } while (p != vp->halfedge());
-
-  HalfedgeIter q = vq->halfedge();
+    h1_prev = h1_prev->next();
+  } while (h1_prev->next() != h);
+  auto h2_prev = h2;
   do {
-    q->vertex() = v;
-    q = q->twin()->next();
-  } while (q != vq->halfedge());
+    h2_prev = h2_prev->next();
+  } while (h2_prev->next() != h_twin);
 
-  // DELETE
+  // Triangular cases
+  if (h1->next() == h1_prev) {
+    // printf("First!\n");
+    auto e1 = h1->edge();
+    auto f1 = h1->face();
+    auto v1 = h1->vertex();
+    auto v2 = h1_twin->vertex();
+    auto f_nei = h1_twin->face();
+    auto h1_nei_next = h1_twin->next();
+    auto h1_nei_prev = h1_nei_next;
+    do {
+      h1_nei_prev = h1_nei_prev->next();
+    } while (h1_nei_prev->next() != h1_twin);
 
+    // half edges
+    h->next() = h1_nei_next;
+    h1_nei_prev->next() = h1_prev;
+
+    // vertices
+    v1->halfedge() = h_twin;
+    v2->halfedge() = h1_prev;
+
+    // face
+    f_nei->halfedge() = h1_nei_next;
+    h->face() = f_nei;
+    h1_prev->face() = f_nei;
+
+    // delete
+    deleteEdge(e1);
+    deleteFace(f1);
+    deleteHalfedge(h1_twin);
+    deleteHalfedge(h1);
+  }
+
+  if (h2->next() == h2_prev) {
+    // printf("Second\n");
+    auto e2 = h2->edge();
+    auto f2 = h2->face();
+    auto v1 = h2->vertex();
+    auto v2 = h2_twin->vertex();
+    auto f_nei = h2_twin->face();
+    auto h2_nei_next = h2_twin->next();
+    auto h2_nei_prev = h2_nei_next;
+    do {
+      h2_nei_prev = h2_nei_prev->next();
+    } while (h2_nei_prev->next() != h2_twin);
+
+    // half edges
+    h_twin->next() = h2_nei_next;
+    h2_nei_prev->next() = h2_prev;
+
+    // vertices
+    v1->halfedge() = h;
+    v2->halfedge() = h2_prev;
+
+    // face
+    f_nei->halfedge() = h2_nei_next;
+    h_twin->face() = f_nei;
+    h2_prev->face() = f_nei;
+
+    // delete
+    deleteEdge(e2);
+    deleteFace(f2);
+    deleteHalfedge(h2_twin);
+    deleteHalfedge(h2);
+  }
+
+  printf("Get Centroid\n");
+  Vector3D centroid = e->centroid();
+  auto f1 = h->face();
+  auto f2 = h_twin->face();
+
+  // half edges
+  auto currH = h->next();
+  int n = 0;
+  do {
+    currH->vertex() = newVtx;
+    currH = currH->twin()->next();
+    printf("No. %d\n",++n);
+  } while (currH != h_twin);
+  h1_prev->next() = h->next();
+  h2_prev->next() = h_twin->next();
+  cout << "past do while edge collapse" << endl;
+  // vertex
+  newVtx->halfedge() = h1_prev->twin();
+  newVtx->position = centroid;
+
+  // face
+  f1->halfedge() = h1_prev;
+  f2->halfedge() = h2_prev;
+
+  printf("End of Edge Collapse: Cleanup\n");
+
+  deleteVertex(delVtx);
   deleteEdge(e);
-  deleteVertex(vp);
-  deleteVertex(vq);
-  deleteHalfedge(hp);
-  deleteHalfedge(hq);
+  deleteHalfedge(h);
+  deleteHalfedge(h_twin);
 
-  if (p_degree == 3) {
-    deleteEdge(ep0); deleteEdge(ep1);
-    deleteHalfedge(hp00); deleteHalfedge(hp10);
-    deleteFace(fp);
-  }
+  printf("New vertex Position\n");
+  cout<<newVtx->position<<endl;
+  newVtx->collapseSuccess = true;
+  return newVtx;
 
-  if (q_degree == 3) {
-    deleteEdge(eq0); deleteEdge(eq1);
-    deleteHalfedge(hq00); deleteHalfedge(hq10);
-    deleteFace(fq);
-  }
-
-//  checkConsistency();
-
-  return v;
+//  if (e->isBoundary()) return e->halfedge()->vertex();
+//
+//  // COLLECT
+//  HalfedgeIter hp = e->halfedge(); HalfedgeIter hq = hp->twin();
+//  VertexIter vp = hp->vertex(); VertexIter vq = hq->vertex();
+//  FaceIter fp = hp->face(); FaceIter fq = hq->face();
+//  int p_degree = fp->degree(); int q_degree = fq->degree();
+//
+//  if (p_degree == 3 && q_degree == 3) {
+//    showError("cannot collapse this edge", false);
+//    return e->halfedge()->vertex();
+//  }
+//
+//  HalfedgeIter hp00, hp01, hp10, hp11;
+//  HalfedgeIter hq00, hq01, hq10, hq11;
+//  HalfedgeIter hp_prev, hq_prev;
+//  EdgeIter ep0, ep1, eq0, eq1;
+//  VertexIter vpp, vqq;
+//
+//  if (p_degree == 3) {
+//    hp00 = hp->next(); hp01 = hp00->twin();
+//    hp10 = hp00->next(); hp11 = hp10->twin();
+//    ep0 = hp00->edge(); ep1 = hp10->edge();
+//    vpp = hp10->vertex();
+//  } else {
+//    hp_prev = util::find_previous(hp);
+//  }
+//
+//  if (q_degree == 3) {
+//    hq00 = hq->next(); hq01 = hq00->twin();
+//    hq10 = hq00->next(); hq11 = hq10->twin();
+//    eq0 = hp00->edge(); eq1 = hp10->edge();
+//    vqq = hq10->vertex();
+//  } else {
+//    hq_prev = util::find_previous(hq);
+//  }
+//
+//  // NEW
+//  VertexIter v = newVertex();
+//  EdgeIter ep, eq;
+//  if (p_degree == 3) ep = newEdge();
+//  if (q_degree == 3) eq = newEdge();
+//
+//  // ASSIGN
+//  v->position = (vp->position + vq->position) / 2.0f;
+//
+//  if (p_degree == 3) {
+//    hp11->setNeighbors(ep, hp01, v, hp11->face(), hp11->next());
+//    hp01->setNeighbors(ep, hp11, vpp, hp01->face(), hp01->next());
+//    ep->halfedge() = hp01;
+//    v->halfedge() = hp11;
+//  } else {
+//    hp_prev->next() = hp->next();
+//  }
+//
+//  if (q_degree == 3) {
+//    hq11->setNeighbors(eq, hq01, v, hq11->face(), hq11->next());
+//    hq01->setNeighbors(eq, hq11, vqq, hq01->face(), hq01->next());
+//    eq->halfedge() = hq01;
+//    v->halfedge() = hq11;
+//  } else {
+//    hq_prev->next() = hq->next();
+//  }
+//
+//  if (p_degree > 3 && q_degree > 3) v->halfedge() = vp->halfedge()->twin()->next();
+//
+//  HalfedgeIter p = vp->halfedge();
+//  do {
+//    p->vertex() = v;
+//    p = p->twin()->next();
+//  } while (p != vp->halfedge());
+//
+//  HalfedgeIter q = vq->halfedge();
+//  do {
+//    q->vertex() = v;
+//    q = q->twin()->next();
+//  } while (q != vq->halfedge());
+//
+//  // DELETE
+//
+//  deleteEdge(e);
+//  deleteVertex(vp);
+//  deleteVertex(vq);
+//  deleteHalfedge(hp);
+//  deleteHalfedge(hq);
+//
+//  if (p_degree == 3) {
+//    deleteEdge(ep0); deleteEdge(ep1);
+//    deleteHalfedge(hp00); deleteHalfedge(hp10);
+//    deleteFace(fp);
+//  }
+//
+//  if (q_degree == 3) {
+//    deleteEdge(eq0); deleteEdge(eq1);
+//    deleteHalfedge(hq00); deleteHalfedge(hq10);
+//    deleteFace(fq);
+//  }
+//
+////  checkConsistency();
+//
+//  return v;
 }
 
 VertexIter HalfedgeMesh::collapseFace(FaceIter f) {

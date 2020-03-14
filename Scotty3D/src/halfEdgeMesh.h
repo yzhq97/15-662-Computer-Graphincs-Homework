@@ -512,6 +512,8 @@ namespace CMU462 {
      */
     Index index;
 
+    bool collapseSuccess;
+
     /**
      * For subdivision, this will be the position for the face center
      */
@@ -938,6 +940,8 @@ namespace CMU462 {
      * Collapse an edge, returning a pointer to the collapsed vertex
      */
     VertexIter collapseEdge(EdgeIter e);
+
+    std::set<int> getVertexRing(VertexCIter Vertices);
 
     /**
      * Collapse a face, returning a pointer to the collapsed vertex
