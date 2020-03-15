@@ -512,8 +512,6 @@ namespace CMU462 {
      */
     Index index;
 
-    bool collapseSuccess;
-
     /**
      * For subdivision, this will be the position for the face center
      */
@@ -566,6 +564,9 @@ namespace CMU462 {
      * to a vertex of the original mesh)
      */
     bool isNew;
+
+    // for collapseEdge
+    bool collapseSuccess;
 
     /**
      * Translate this vertex by a specified vector u.
