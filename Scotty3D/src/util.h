@@ -8,12 +8,14 @@ using namespace std;
 
 namespace util {
   HalfedgeIter find_previous(HalfedgeIter h) {
-    int degree = h->face()->degree();
     HalfedgeIter p = h;
-    for (int i = 0; i < degree - 1; i++) p = p->next();
-    //    while (p->next() != h) p = p->next();
+    do {
+      p = p->next();
+    } while (p->next() != h);
     return p;
   }
+
+
 }
 
 #endif //CMU462_UTIL_H

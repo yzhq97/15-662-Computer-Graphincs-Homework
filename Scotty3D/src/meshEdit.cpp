@@ -8,27 +8,16 @@
 
 namespace CMU462 {
 
-std::set<int> HalfedgeMesh::getVertexRing(VertexCIter Vertices) {
-  // Iterate over vertices in the 1-ring of v,
-  // inserting vertex->index
-  // to the vertex ring set, OneRing
+set<int> HalfedgeMesh::getVertexNeighbors(VertexIter v) {
   assignSubdivisionIndices();
-  std::set<int> OneRing;
-
-  HalfedgeCIter h = Vertices->halfedge();     // get one of the outgoing halfedges of the vertex
+  set<int> neighbors;
+  HalfedgeIter h = v->halfedge();
   do {
-    HalfedgeCIter h_twin = h->twin();// get the vertex of the current halfedge
-    VertexCIter v = h_twin->vertex();// vertex is 'source' of the half edge.
-    // so h->vertex() is v,
-    // whereas h_twin->vertex() is the neighbor vertex.
-    //cout << " index= " << v->index << " pos = " << v->position << endl;      // print the vertex position
-    OneRing.insert(v->index);               // insert the vertex to the one ring set.
+    neighbors.insert(h->twin()->vertex()->index);
+    h = h->twin()->next();
+  } while(h != v->halfedge());
 
-    h = h_twin->next();              // move to the next outgoing halfedge of the vertex.
-  } while(h != Vertices->halfedge());         // keep going until we're back at the beginning
-
-
-  return OneRing;
+  return neighbors;
 }
 
 VertexIter HalfedgeMesh::splitEdge(EdgeIter e0) {
@@ -147,153 +136,117 @@ VertexIter HalfedgeMesh::collapseEdge(EdgeIter e) {
   // This method should collapse the given edge and return an iterator to
   // the new vertex created by the collapse.
 
-  auto vt1 = e->halfedge()->vertex();
-  auto vt2 = e->halfedge()->twin()->vertex();
-
-  // get intersection of the one ring of vt1 and vt2
-  int num_one_ring_shared_adjacent_verts = 0;
-  std::set<int> ring_vt1 = HalfedgeMesh::getVertexRing(vt1);
-  std::set<int> ring_vt2 = HalfedgeMesh::getVertexRing(vt2);
+  // CHECK
+  HalfedgeIter h0 = e->halfedge(); HalfedgeIter h1 = h0->twin();
+  VertexIter v0 = h0->vertex(); VertexIter v1 = h1->vertex();
 
   set<int> intersect;
-  set_intersection(ring_vt1.begin(),ring_vt1.end(),
-                   ring_vt2.begin(),ring_vt2.end(),
-                   std::inserter(intersect,intersect.begin()));
+  set<int> v0_neighbors = getVertexNeighbors(v0);
+  set<int> v1_neighbors = getVertexNeighbors(v1);
+  set_intersection(v0_neighbors.begin(), v0_neighbors.end(), v1_neighbors.begin(), v1_neighbors.end(), inserter(intersect,intersect.begin()));
 
-  num_one_ring_shared_adjacent_verts = intersect.size();
-  cout << "One Ring Intersection = " << num_one_ring_shared_adjacent_verts << endl;
-
-  // for (auto item = intersect.begin(); item != intersect.end(); item++ ) {
-  //    cout << *item << endl;
-  // }
-
-  if (num_one_ring_shared_adjacent_verts != 2) {
-    cout << "Non-manifold Edge Collapse Requested" << endl;
-    e->halfedge()->vertex()->collapseSuccess = false;
-    return e->halfedge()->vertex();
+  int n_inter = intersect.size();
+  if (n_inter != 2) {
+    showError("Collapse edge will cause non-manifold mesh.", false);
+    v0->collapseEdgeSuccess = false;
+    return v0;
   }
 
+  // COLLECT
+  HalfedgeIter h2 = h0->next(); HalfedgeIter h3 = h1->next();
+  HalfedgeIter h4 = h2->twin(); HalfedgeIter h5 = h3->twin();
+  HalfedgeIter h0_prev = util::find_previous(h0);
+  HalfedgeIter h1_prev = util::find_previous(h1);
+  FaceIter f0 = h0->face();
+  FaceIter f1 = h1->face();
 
-  auto h = e->halfedge();
-  auto h_twin = h->twin();
-  auto newVtx = h->vertex();
-  auto delVtx = h_twin->vertex();
+  // TRIANGLE 1
+  if (h2->next() == h0_prev) {
 
-  auto h1 = e->halfedge()->next();
-  auto h2 = e->halfedge()->twin()->next();
-  auto h1_twin = h1->twin();
-  auto h2_twin = h2->twin();
-  auto h1_prev = h1;
-  do {
-    h1_prev = h1_prev->next();
-  } while (h1_prev->next() != h);
-  auto h2_prev = h2;
-  do {
-    h2_prev = h2_prev->next();
-  } while (h2_prev->next() != h_twin);
+    // COLLECT
+    HalfedgeIter h4_next = h4->next();
+    HalfedgeIter h4_prev = util::find_previous(h4);
 
-  // Triangular cases
-  if (h1->next() == h1_prev) {
-    // printf("First!\n");
-    auto e1 = h1->edge();
-    auto f1 = h1->face();
-    auto v1 = h1->vertex();
-    auto v2 = h1_twin->vertex();
-    auto f_nei = h1_twin->face();
-    auto h1_nei_next = h1_twin->next();
-    auto h1_nei_prev = h1_nei_next;
-    do {
-      h1_nei_prev = h1_nei_prev->next();
-    } while (h1_nei_prev->next() != h1_twin);
+    EdgeIter et0 = h2->edge();
+    VertexIter vt0 = h2->vertex();
+    VertexIter vt1 = h4->vertex();
+    FaceIter ft0 = h2->face();
+    FaceIter ft1 = h4->face();
 
-    // half edges
-    h->next() = h1_nei_next;
-    h1_nei_prev->next() = h1_prev;
+    // ASSIGN
+    h0->next() = h4_next;
+    h4_prev->next() = h0_prev;
+    h0->face() = ft1;
+    h0_prev->face() = ft1;
 
-    // vertices
-    v1->halfedge() = h_twin;
-    v2->halfedge() = h1_prev;
+    vt0->halfedge() = h1;
+    vt1->halfedge() = h0_prev;
+    ft1->halfedge() = h4_next;
 
-    // face
-    f_nei->halfedge() = h1_nei_next;
-    h->face() = f_nei;
-    h1_prev->face() = f_nei;
-
-    // delete
-    deleteEdge(e1);
-    deleteFace(f1);
-    deleteHalfedge(h1_twin);
-    deleteHalfedge(h1);
-  }
-
-  if (h2->next() == h2_prev) {
-    // printf("Second\n");
-    auto e2 = h2->edge();
-    auto f2 = h2->face();
-    auto v1 = h2->vertex();
-    auto v2 = h2_twin->vertex();
-    auto f_nei = h2_twin->face();
-    auto h2_nei_next = h2_twin->next();
-    auto h2_nei_prev = h2_nei_next;
-    do {
-      h2_nei_prev = h2_nei_prev->next();
-    } while (h2_nei_prev->next() != h2_twin);
-
-    // half edges
-    h_twin->next() = h2_nei_next;
-    h2_nei_prev->next() = h2_prev;
-
-    // vertices
-    v1->halfedge() = h;
-    v2->halfedge() = h2_prev;
-
-    // face
-    f_nei->halfedge() = h2_nei_next;
-    h_twin->face() = f_nei;
-    h2_prev->face() = f_nei;
-
-    // delete
-    deleteEdge(e2);
-    deleteFace(f2);
-    deleteHalfedge(h2_twin);
+    // DELETE
+    deleteEdge(et0);
+    deleteFace(ft0);
+    deleteHalfedge(h4);
     deleteHalfedge(h2);
   }
 
-  printf("Get Centroid\n");
-  Vector3D centroid = e->centroid();
-  auto f1 = h->face();
-  auto f2 = h_twin->face();
+  // TRIANGLE 2
+  if (h3->next() == h1_prev) {
 
-  // half edges
-  auto currH = h->next();
-  int n = 0;
+    // COLLECT
+    HalfedgeIter h5_next = h5->next();
+    HalfedgeIter h5_prev = util::find_previous(h5);
+
+    EdgeIter et1 = h3->edge();
+    VertexIter vt0 = h3->vertex();
+    VertexIter vt1 = h5->vertex();
+    FaceIter ft0 = h3->face();
+    FaceIter ft1 = h5->face();
+
+    // ASSIGN
+    h1->next() = h5_next;
+    h5_prev->next() = h1_prev;
+    h1->face() = ft1;
+    h1_prev->face() = ft1;
+
+    vt0->halfedge() = h0;
+    vt1->halfedge() = h1_prev;
+    ft1->halfedge() = h5_next;
+
+    // DELETE
+    deleteEdge(et1);
+    deleteFace(ft0);
+    deleteHalfedge(h5);
+    deleteHalfedge(h3);
+  }
+
+  // ASSIGN
+
+  // set halfedges around v1
+  HalfedgeIter p = h0->next();
   do {
-    currH->vertex() = newVtx;
-    currH = currH->twin()->next();
-    printf("No. %d\n",++n);
-  } while (currH != h_twin);
-  h1_prev->next() = h->next();
-  h2_prev->next() = h_twin->next();
-  cout << "past do while edge collapse" << endl;
-  // vertex
-  newVtx->halfedge() = h1_prev->twin();
-  newVtx->position = centroid;
+    p->vertex() = v0;
+    p = p->twin()->next();
+  } while (p != h1);
+  h0_prev->next() = h0->next();
+  h1_prev->next() = h1->next();
 
-  // face
+  v0->halfedge() = h0_prev->twin();
+  v0->position = e->centroid();
+
+  f0->halfedge() = h0_prev;
   f1->halfedge() = h1_prev;
-  f2->halfedge() = h2_prev;
 
-  printf("End of Edge Collapse: Cleanup\n");
-
-  deleteVertex(delVtx);
+  // DELETE
+  deleteVertex(v1);
   deleteEdge(e);
-  deleteHalfedge(h);
-  deleteHalfedge(h_twin);
+  deleteHalfedge(h0);
+  deleteHalfedge(h1);
 
-  printf("New vertex Position\n");
-  cout<<newVtx->position<<endl;
-  newVtx->collapseSuccess = true;
-  return newVtx;
+//  checkConsistency();
+  v0->collapseEdgeSuccess = true;
+
+  return v0;
 
 }
 
@@ -930,14 +883,33 @@ EdgeRecord::EdgeRecord(EdgeIter& _edge) : edge(_edge) {
 void MeshResampler::upsample(HalfedgeMesh& mesh)
 // This routine should increase the number of triangles in the mesh using Loop
 // subdivision.
+// Compute new positions for all the vertices in the input mesh, using
+// the Loop subdivision rule, and store them in Vertex::newPosition.
 {
-  // TODO: (meshEdit)
-  // Compute new positions for all the vertices in the input mesh, using
-  // the Loop subdivision rule, and store them in Vertex::newPosition.
   // -> At this point, we also want to mark each vertex as being a vertex of the
   //    original mesh.
+
+  float n, u;
+  for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
+    v->isNew = false;
+    n = (float)(v->degree());
+    if (n == 3) u = 3.0f / 16.0f;
+    else u = 3.0f / (8.0f * n);
+    v->newPosition = (1.0f - u * n) * v->position + u * n * v->neighborhoodCentroid();
+  }
+
   // -> Next, compute the updated vertex positions associated with edges, and
   //    store it in Edge::newPosition.
+
+  for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
+    e->isNew = false;
+    HalfedgeIter temp1 = e->halfedge();
+    HalfedgeIter temp2 = temp1->twin();
+    Vector3D C = temp1->next()->next()->vertex()->position;
+    Vector3D D = temp2->next()->next()->vertex()->position;
+    e->newPosition = 3.0f / 8.0f * 2.0f * e->centroid() + 1.0f / 8.0f * (C+D);
+  }
+
   // -> Next, we're going to split every edge in the mesh, in any order.  For
   //    future reference, we're also going to store some information about which
   //    subdivided edges come from splitting an edge in the original mesh, and
@@ -945,39 +917,54 @@ void MeshResampler::upsample(HalfedgeMesh& mesh)
   //    loop, we only want to iterate over edges of the original mesh.
   //    Otherwise, we'll end up splitting edges that we just split (and the
   //    loop will never end!)
+  int n_edges = mesh.nEdges();
+  EdgeIter e = mesh.edgesBegin();
+  vector<EdgeIter> E;
+  vector<VertexIter> V;
+  for (int i = 0; i < n_edges; i++) {
+
+    // get the next edge from an iterator
+    EdgeIter nextEdge = e;
+    nextEdge++;
+
+    VertexIter v0;
+    if (e->isNew == false) {
+      E.push_back(e);
+      v0 = mesh.splitEdge(e);
+      V.push_back(v0);
+      v0->isNew = true;
+      v0->halfedge()->twin()->next()->edge()->isNew = true;
+      v0->halfedge()->next()->next()->edge()->isNew = true;
+    }
+    e = nextEdge;
+  }
+
+
+  /*Flip any new edge that touches a new vertex and an old vertex.
+  Note: Every original edge will now be represented by 2 edges,
+  you should not flip these edges, because they
+  are always already along the boundary of the 4 way divided triangles.
+  In the diagrams below, you should only flip the blue edges
+  that connect an old and new vertex,
+  but you should not flip any of the black new edges.*/
+
   // -> Now flip any new edge that connects an old and new vertex.
+  for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
+    if ((e->isNew) && (e->halfedge()->vertex()->isNew ^ e->halfedge()->twin()->vertex()->isNew)) {
+      mesh.flipEdge(e);
+    }
+  }
+
   // -> Finally, copy the new vertex positions into final Vertex::position.
+  for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
+    if (!v->isNew) v->position = v->newPosition;
+    //else v->position = v->halfedge()->edge()->newPosition;
+  }
 
-  // Each vertex and edge of the original surface can be associated with a
-  // vertex in the new (subdivided) surface.
-  // Therefore, our strategy for computing the subdivided vertex locations is to
-  // *first* compute the new positions
-  // using the connectity of the original (coarse) mesh; navigating this mesh
-  // will be much easier than navigating
-  // the new subdivided (fine) mesh, which has more elements to traverse.  We
-  // will then assign vertex positions in
-  // the new mesh based on the values we computed for the original mesh.
-
-  // Compute updated positions for all the vertices in the original mesh, using
-  // the Loop subdivision rule.
-
-  // Next, compute the updated vertex positions associated with edges.
-
-  // Next, we're going to split every edge in the mesh, in any order.  For
-  // future
-  // reference, we're also going to store some information about which
-  // subdivided
-  // edges come from splitting an edge in the original mesh, and which edges are
-  // new.
-  // In this loop, we only want to iterate over edges of the original
-  // mesh---otherwise,
-  // we'll end up splitting edges that we just split (and the loop will never
-  // end!)
-
-  // Finally, flip any new edge that connects an old and new vertex.
-
-  // Copy the updated vertex positions to the subdivided mesh.
-  showError("upsample() not implemented.");
+  for (int j = 0; j < V.size(); j++) {
+    V[j]->position = E[j]->newPosition;
+  }
+  cout << "upsample complete" << endl;
 }
 
 void MeshResampler::downsample(HalfedgeMesh& mesh) {

@@ -566,7 +566,7 @@ namespace CMU462 {
     bool isNew;
 
     // for collapseEdge
-    bool collapseSuccess;
+    bool collapseEdgeSuccess;
 
     /**
      * Translate this vertex by a specified vector u.
@@ -942,7 +942,8 @@ namespace CMU462 {
      */
     VertexIter collapseEdge(EdgeIter e);
 
-    std::set<int> getVertexRing(VertexCIter Vertices);
+    // get all the neighbors of a vertex
+    std::set<int> getVertexNeighbors(VertexIter v);
 
     /**
      * Collapse a face, returning a pointer to the collapsed vertex
