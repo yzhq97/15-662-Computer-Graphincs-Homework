@@ -21,116 +21,156 @@ set<int> HalfedgeMesh::getVertexNeighbors(VertexIter v) {
 }
 
 VertexIter HalfedgeMesh::splitEdge(EdgeIter e0) {
-  // This method should split the given edge and return an iterator to the
-  // newly inserted vertex. The halfedge of this vertex should point along
-  // the edge that was split, rather than the new edges.
 
-  if (e0->isBoundary()) return e0->halfedge()->vertex();
-
-  // COLLECT
-
-  HalfedgeIter h0 = e0->halfedge(); HalfedgeIter h1 = h0->twin();
-
-  FaceIter f0 = h0->face(); FaceIter f1 = h1->face();
-
-  if (f0->degree() != 3 || f1->degree() != 3) {
-    showError("Edge split only works on triangle meshes.", false);
+  if (e0->halfedge()->face()->degree() != 3 && e0->halfedge()->twin()->face()->degree() != 3) {
+    showError("Only works with triangle mesh.", false);
     return e0->halfedge()->vertex();
   }
 
-  HalfedgeIter h2 = h0->next(); HalfedgeIter h3 = h2->twin();
-  HalfedgeIter h4 = h2->next(); HalfedgeIter h5 = h4->twin();
-  HalfedgeIter h6 = h1->next(); HalfedgeIter h7 = h6->twin();
-  HalfedgeIter h8 = h6->next(); HalfedgeIter h9 = h8->twin();
+  if (e0->isBoundary()) {
 
-  EdgeIter e1 = h2->edge();
-  EdgeIter e2 = h4->edge();
-  EdgeIter e3 = h6->edge();
-  EdgeIter e4 = h8->edge();
+    // Handle boundary case
 
-  VertexIter v0 = h1->vertex();
-  VertexIter v1 = h0->vertex();
-  VertexIter v2 = h4->vertex();
-  VertexIter v3 = h8->vertex();
+    // COLLECT
 
-  // CREATE
-  VertexIter v5 = newVertex();
+    HalfedgeIter h0 = e0->halfedge();
+    HalfedgeIter h1 = h0->next();
+    HalfedgeIter h2 = h1->next();
+    HalfedgeIter h3 = h0->twin();
+    HalfedgeIter h6 = h1->twin();
+    HalfedgeIter h7 = h2->twin();
 
-  EdgeIter e5 = newEdge();
-  EdgeIter e6 = newEdge();
-  EdgeIter e7 = newEdge();
-  EdgeIter e8 = newEdge();
+    VertexIter v0 = h0->vertex();
+    VertexIter v1 = h1->vertex();
+    VertexIter v2 = h2->vertex();
 
-  HalfedgeIter h10 = newHalfedge(); HalfedgeIter h11 = newHalfedge();
-  HalfedgeIter h12 = newHalfedge(); HalfedgeIter h13 = newHalfedge();
-  HalfedgeIter h14 = newHalfedge(); HalfedgeIter h15 = newHalfedge();
-  HalfedgeIter h16 = newHalfedge(); HalfedgeIter h17 = newHalfedge();
+    EdgeIter e1 = h1->edge();
+    EdgeIter e2 = h2->edge();
 
-  FaceIter f2 = newFace();
-  FaceIter f3 = newFace();
-  FaceIter f4 = newFace();
-  FaceIter f5 = newFace();
+    FaceIter f0 = h0->face();
 
-  // ASSIGN NEW
-  v5->position = (v0->position + v1->position) / 2.0f;
+    // NEW
 
-  h10->setNeighbors(e5, h11, v5, f2, h2);
-  h11->setNeighbors(e5, h10, v0, f5, h17);
-  h12->setNeighbors(e6, h13, v2, f2, h10);
-  h13->setNeighbors(e6, h12, v5, f3, h4);
-  h14->setNeighbors(e7, h15, v1, f3, h13);
-  h15->setNeighbors(e7, h14, v5, f4, h6);
-  h16->setNeighbors(e8, h17, v3, f4, h15);
-  h17->setNeighbors(e8, h16, v5, f5, h8);
+    HalfedgeIter h10 = newHalfedge();
+    HalfedgeIter h11 = newHalfedge();
+    HalfedgeIter h14 = newHalfedge();
+    HalfedgeIter h15 = newHalfedge();
 
-  e5->halfedge() = h10;
-  e6->halfedge() = h12;
-  e7->halfedge() = h14;
-  e8->halfedge() = h16;
+    VertexIter vn = newVertex();
 
-  v5->halfedge() = h10;
+    EdgeIter e5 = newEdge();
+    EdgeIter e7 = newEdge();
 
-  f2->halfedge() = h10;
-  f3->halfedge() = h14;
-  f4->halfedge() = h15;
-  f5->halfedge() = h11;
+    FaceIter f2 = newFace();
 
-  // ASSIGN OLD
-  h2->setNeighbors(e1, h3, v0, f2, h12);
-  h3->setNeighbors(e1, h2, v2, h3->face(), h3->next());
-  h4->setNeighbors(e2, h5, v2, f3, h14);
-  h5->setNeighbors(e2, h4, v1, h5->face(), h5->next());
-  h6->setNeighbors(e3, h7, v1, f4, h16);
-  h7->setNeighbors(e3, h6, v3, h7->face(), h7->next());
-  h8->setNeighbors(e4, h9, v3, f5, h11);
-  h9->setNeighbors(e4, h8, v0, h9->face(), h9->next());
+    // ASSIGN
 
-  e1->halfedge() = h2;
-  e2->halfedge() = h4;
-  e3->halfedge() = h6;
-  e4->halfedge() = h8;
+    vn->position = e0->centroid();
 
-  v0->halfedge() = h2;
-  v1->halfedge() = h6;
-  v2->halfedge() = h4;
-  v3->halfedge() = h8;
+    h10->setNeighbors(e5, h11, vn, f2, h3->next());
+    h11->setNeighbors(e5, h10, v0, f2, h14);
+    h14->setNeighbors(e7, h15, vn, f2, h2);
+    h15->setNeighbors(e7, h14, v2, f0, h0);
 
-  f2->halfedge() = h2;
-  f3->halfedge() = h4;
-  f4->halfedge() = h6;
-  f5->halfedge() = h8;
+    h0->setNeighbors(h0->edge(), h0->twin(), vn, h0->face(), h0->next());
+    h1->setNeighbors(h1->edge(), h1->twin(), h1->vertex(), h1->face(), h15);
+    h2->setNeighbors(h2->edge(), h2->twin(), h2->vertex(), f2, h11);
+    h3->setNeighbors(h3->edge(), h3->twin(), h3->vertex(), h3->face(), h10);
 
-  // DELETE
-  deleteEdge(e0);
-  deleteFace(f0);
-  deleteFace(f1);
-  deleteHalfedge(h0);
-  deleteHalfedge(h1);
+    vn->halfedge() = h0;
+    e5->halfedge() = h11;
+    e7->halfedge() = h14;
+    f2->halfedge() = h2;
 
-//  checkConsistency();
+    e0->halfedge() = h0;
+    f0->halfedge() = h1;
 
-  return v5;
+//    checkConsistency();
+
+    return vn;
+
+  } else {
+
+    // COLLECT
+
+    HalfedgeIter h0 = e0->halfedge();
+    HalfedgeIter h1 = h0->next();
+    HalfedgeIter h2 = h1->next();
+    HalfedgeIter h3 = h0->twin();
+    HalfedgeIter h4 = h3->next();
+    HalfedgeIter h5 = h4->next();
+    HalfedgeIter h6 = h1->twin();
+    HalfedgeIter h7 = h2->twin();
+    HalfedgeIter h8 = h4->twin();
+    HalfedgeIter h9 = h5->twin();
+
+    VertexIter v0 = h0->vertex();
+    VertexIter v1 = h3->vertex();
+    VertexIter v2 = h2->vertex();
+    VertexIter v3 = h5->vertex();
+
+    EdgeIter e1 = h1->edge();
+    EdgeIter e2 = h2->edge();
+    EdgeIter e3 = h4->edge();
+    EdgeIter e4 = h5->edge();
+
+    FaceIter f0 = h0->face();
+    FaceIter f1 = h3->face();
+
+    // NEW
+
+    HalfedgeIter h10 = newHalfedge();
+    HalfedgeIter h11 = newHalfedge();
+    HalfedgeIter h12 = newHalfedge();
+    HalfedgeIter h13 = newHalfedge();
+    HalfedgeIter h14 = newHalfedge();
+    HalfedgeIter h15 = newHalfedge();
+
+    VertexIter vn = newVertex();
+
+    EdgeIter e5 = newEdge();
+    EdgeIter e6 = newEdge();
+    EdgeIter e7 = newEdge();
+
+    FaceIter f2 = newFace();
+    FaceIter f3 = newFace();
+
+    // ASSIGN
+
+    vn->position = e0->centroid();
+
+    h10->setNeighbors(e5, h11, vn, f3, h4);
+    h11->setNeighbors(e5, h10, v0, f2, h14);
+    h12->setNeighbors(e6, h13, v3, f3, h10);
+    h13->setNeighbors(e6, h12, vn, f1, h5);
+    h14->setNeighbors(e7, h15, vn, f2, h2);
+    h15->setNeighbors(e7, h14, v2, f0, h0);
+
+    h0->setNeighbors(h0->edge(), h0->twin(), vn, h0->face(), h0->next());
+    h1->setNeighbors(h1->edge(), h1->twin(), h1->vertex(), h1->face(), h15);
+    h2->setNeighbors(h2->edge(), h2->twin(), h2->vertex(), f2, h11);
+    h3->setNeighbors(h3->edge(), h3->twin(), h3->vertex(), h3->face(), h13);
+    h4->setNeighbors(h4->edge(), h4->twin(), h4->vertex(), f3, h12);
+
+    vn->halfedge() = h0;
+    e5->halfedge() = h10;
+    e6->halfedge() = h13;
+    e7->halfedge() = h14;
+
+    f2->halfedge() = h2;
+    f3->halfedge() = h4;
+
+    e0->halfedge() = h0;
+    f0->halfedge() = h1;
+    f1->halfedge() = h5;
+
+//    checkConsistency();
+
+    return vn;
+  }
 }
+
+
 
 VertexIter HalfedgeMesh::collapseEdge(EdgeIter e) {
   // This method should collapse the given edge and return an iterator to
