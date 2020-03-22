@@ -27,9 +27,8 @@ VertexIter HalfedgeMesh::splitEdge(EdgeIter e0) {
     return e0->halfedge()->vertex();
   }
 
+  // Handle boundary
   if (e0->isBoundary()) {
-
-    // Handle boundary case
 
     // COLLECT
 
@@ -187,7 +186,7 @@ VertexIter HalfedgeMesh::collapseEdge(EdgeIter e) {
 
   int n_inter = intersect.size();
   if (n_inter != 2) {
-//    showError("Collapse edge will cause non-manifold mesh.", false);
+    showError("Collapse edge will cause non-manifold mesh.", false);
     v0->collapseEdgeSuccess = false;
     return v0;
   }
@@ -1008,88 +1007,11 @@ void MeshResampler::upsample(HalfedgeMesh& mesh)
 }
 
 void MeshResampler::downsample(HalfedgeMesh& mesh) {
+  // TODO: (meshEdit)
   // Compute initial quadrics for each face by simply writing the plane equation
   // for the face in homogeneous coordinates. These quadrics should be stored
   // in Face::quadric
-
-  // -> Compute an initial quadric for each vertex as the sum of the quadrics
-  //    associated with the incident faces, storing it in Vertex::quadric
-
-  for (FaceIter f = mesh.facesBegin(); f != mesh.facesEnd(); f++) {
-    Vector3D p = f->centroid(); Vector3D N = f->normal();
-    float dist = -dot(N, p);
-    Vector4D v = (N[0], N[1], N[2], dist);
-    f->quadric = outer(v, v);
-  }
-
-  // -> Compute an initial quadric for each vertex as the sum of the quadrics
-  //    associated with the incident faces, storing it in Vertex::quadric
-
-  for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
-    HalfedgeIter h = v->halfedge();
-    Matrix4x4 mat = h->face()->quadric;
-    while (h->next() != v->halfedge()) {
-      h = h->next();
-      mat += h->face()->quadric;
-    }
-  }
-
-  // -> Build a priority queue of edges according to their quadric error cost,
-  //    i.e., by building an EdgeRecord for each edge and sticking it in the
-  //    queue.
-
-  MutablePriorityQueue<EdgeRecord> queue;
-  for (EdgeIter e = mesh.edgesBegin(); e != mesh.edgesEnd(); e++) {
-    e->record = EdgeRecord(e);
-    queue.insert(e->record);
-  }
-
-  // -> Until we reach the target edge budget, collapse the best edge. Remember
-  //    to remove from the queue any edge that touches the collapsing edge
-  //    BEFORE it gets collapsed, and add back into the queue any edge touching
-  //    the collapsed vertex AFTER it's been collapsed. Also remember to assign
-  //    a quadric to the collapsed vertex, and to pop the collapsed edge off the
-  //    top of the queue.
-
-  int budget = 3 * mesh.nEdges() / 4;
-  HalfedgeIter h;
-
-  while (mesh.nEdges() > budget) {
-
-    EdgeRecord top = queue.top();
-    EdgeIter e = top.edge;
-    queue.pop();
-
-    VertexIter v0 = e->halfedge()->vertex();
-
-    h = e->halfedge()->next();
-    while (h != e->halfedge()->twin()) {
-      queue.remove(h->edge()->record);
-      h = h->twin()->next();
-    }
-
-    h = e->halfedge()->twin()->next();
-    while (h != e->halfedge()) {
-      queue.remove(h->edge()->record);
-      h = h->twin()->next();
-    }
-
-    VertexIter v = mesh.collapseEdge(e);
-    HalfedgeIter h = v->halfedge();
-
-    Matrix4x4 mat; mat.zero();
-
-    while (h->twin()->next() != v->halfedge()) {
-      mat += h->face()->quadric;
-      h->edge()->record = EdgeRecord(h->edge());
-      queue.insert(h->edge()->record);
-      h = h->twin()->next();
-    }
-
-    v->quadric = mat;
-
-  }
-
+  showError("downsample() not implemented.");
 }
 
 void MeshResampler::resample(HalfedgeMesh& mesh) {
