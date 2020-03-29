@@ -9,28 +9,77 @@ namespace CMU462 {
 namespace StaticScene {
 
 bool Sphere::test(const Ray& r, double& t1, double& t2) const {
-  // TODO (PathTracer):
   // Implement ray - sphere intersection test.
   // Return true if there are intersections and writing the
   // smaller of the two intersection times in t1 and the larger in t2.
-  
-  return false;
+
+  Vector3D v = r.o - o;
+
+  double a = 2.0 * dot(r.d, r.d);
+  double b = 2.0 * dot(r.d, v);
+  double c = dot(v, v) - this->r * this->r;
+  double d = b * b - 2.0f * a * c;
+
+  if (d <= 0.0) return false;
+
+  d = sqrt(d);
+  double t = -(b + d) / a;
+
+  if (t < r.min_t) t = -(b - d) / a;
+  if (t < r.min_t || t > r.max_t) return false;
+
+  t1 = -(b + d) / a;
+  t2 = -(b - d) / a;
+
+  return true;
+
 }
 
 bool Sphere::intersect(const Ray& r) const {
-  // TODO (PathTracer):
   // Implement ray - sphere intersection.
   // Note that you might want to use the the Sphere::test helper here.
+
+  double t1, t2;
+
+  if (test(r,t1,t2))
+  {
+    if (t1 < r.min_t)
+      r.max_t = t2;
+    else
+      r.max_t = t1;
+
+    return true;
+  }
 
   return false;
 }
 
 bool Sphere::intersect(const Ray& r, Intersection* isect) const {
-  // TODO (PathTracer):
   // Implement ray - sphere intersection.
   // Note again that you might want to use the the Sphere::test helper here.
   // When an intersection takes place, the Intersection data should be updated
   // correspondingly.
+
+  double t1, t2;
+
+  if (test(r, t1, t2))
+  {
+    if (t1 < r.min_t)
+      r.max_t = t2;
+    else
+      r.max_t = t1;
+
+    isect->t = r.max_t;
+    isect->primitive = this;
+    isect->bsdf = get_bsdf();
+
+    Vector3D hit = r.o + isect->t * r.d;
+    Vector3D normal = hit - o;
+    normal.normalize();
+    isect->n = normal;
+
+    return true;
+  }
 
   return false;
 }
