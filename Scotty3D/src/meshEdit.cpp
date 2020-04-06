@@ -4,7 +4,7 @@
 #include "meshEdit.h"
 #include "mutablePriorityQueue.h"
 #include "error_dialog.h"
-#include "util.h"
+#include "meshUtil.h"
 
 namespace CMU462 {
 
@@ -194,8 +194,8 @@ VertexIter HalfedgeMesh::collapseEdge(EdgeIter e) {
   // COLLECT
   HalfedgeIter h2 = h0->next(); HalfedgeIter h3 = h1->next();
   HalfedgeIter h4 = h2->twin(); HalfedgeIter h5 = h3->twin();
-  HalfedgeIter h0_prev = util::find_previous(h0);
-  HalfedgeIter h1_prev = util::find_previous(h1);
+  HalfedgeIter h0_prev = MESH_UTIL::find_previous(h0);
+  HalfedgeIter h1_prev = MESH_UTIL::find_previous(h1);
   FaceIter f0 = h0->face();
   FaceIter f1 = h1->face();
 
@@ -204,7 +204,7 @@ VertexIter HalfedgeMesh::collapseEdge(EdgeIter e) {
 
     // COLLECT
     HalfedgeIter h4_next = h4->next();
-    HalfedgeIter h4_prev = util::find_previous(h4);
+    HalfedgeIter h4_prev = MESH_UTIL::find_previous(h4);
 
     EdgeIter et0 = h2->edge();
     VertexIter vt0 = h2->vertex();
@@ -234,7 +234,7 @@ VertexIter HalfedgeMesh::collapseEdge(EdgeIter e) {
 
     // COLLECT
     HalfedgeIter h5_next = h5->next();
-    HalfedgeIter h5_prev = util::find_previous(h5);
+    HalfedgeIter h5_prev = MESH_UTIL::find_previous(h5);
 
     EdgeIter et1 = h3->edge();
     VertexIter vt0 = h3->vertex();
@@ -324,8 +324,8 @@ EdgeIter HalfedgeMesh::flipEdge(EdgeIter e0) {
   HalfedgeIter h0 = e0->halfedge(); HalfedgeIter h1 = h0->twin();
   HalfedgeIter h2 = h0->next(); HalfedgeIter h3 = h2->twin();
   HalfedgeIter h4 = h1->next(); HalfedgeIter h5 = h4->twin();
-  HalfedgeIter h6 = util::find_previous(h0); HalfedgeIter h7 = h6->twin();
-  HalfedgeIter h8 = util::find_previous(h1); HalfedgeIter h9 = h8->twin();
+  HalfedgeIter h6 = MESH_UTIL::find_previous(h0); HalfedgeIter h7 = h6->twin();
+  HalfedgeIter h8 = MESH_UTIL::find_previous(h1); HalfedgeIter h9 = h8->twin();
 
   VertexIter v0 = h1->vertex();
   VertexIter v1 = h3->vertex();

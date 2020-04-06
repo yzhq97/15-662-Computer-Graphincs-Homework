@@ -6,7 +6,8 @@
 
 using namespace std;
 
-namespace util {
+namespace MESH_UTIL {
+
   HalfedgeIter find_previous(HalfedgeIter h) {
     HalfedgeIter p = h;
     do {
@@ -14,7 +15,6 @@ namespace util {
     } while (p->next() != h);
     return p;
   }
-
 
 }
 

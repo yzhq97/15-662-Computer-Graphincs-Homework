@@ -51,7 +51,7 @@ bool Triangle::intersect(const Ray& r) const {
 
   double t = dot(-cross(s, e2), e1) / det;
 
-  if (t >= r.min_t || t <= r.max_t) {
+  if (t >= r.min_t && t <= r.max_t) {
     r.max_t = t;
     return true;
   }
@@ -82,7 +82,7 @@ bool Triangle::intersect(const Ray& r, Intersection* isect) const {
 
   double t = dot(-cross(s, e2), e1) / det;
 
-  if (t >= r.min_t || t <= r.max_t) {
+  if (t >= r.min_t && t <= r.max_t) {
 
     r.max_t = t;
     isect->t = t;

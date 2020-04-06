@@ -1,40 +1,17 @@
-# Local Operations
+Path Tracer
 
-## flipEdge
-
-Correctly implemented. Only problem is sometimes flipEdge will cause some surfaces to have 0 areas.
-I have not implemented a checking mechanism to prevent this.
-
-## splitEdge
+Task 1:
 
 Correctly implemented.
 
-## edgeCollapse
-
-Correctly re-implemented.
-
-## faceBevel
+Task 2:
 
 Correctly implemented.
 
+Task 3:
 
+I am able to correctly render bunny, dragon, blob and bench, but when I tried to render wall-e it crashes when building the BVH.
 
-# Global Operations
-
-## Linear Subdivision
-
-Correctly implemented.
-
-## Catmull-Clark Subdivision
+Task 4:
 
 Correctly implemented.
-
-## Loop Subdivision
-
-Correctly implemented.
-
-
-
-# Modeling
-
-Made an R2D2.

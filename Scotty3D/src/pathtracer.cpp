@@ -24,7 +24,7 @@ using std::max;
 
 namespace CMU462 {
 
-// #define ENABLE_RAY_LOGGING 1
+ #define ENABLE_RAY_LOGGING 1
 
 PathTracer::PathTracer(size_t ns_aa, size_t max_ray_depth, size_t ns_area_light,
                        size_t ns_diff, size_t ns_glsy, size_t ns_refr,
@@ -419,7 +419,7 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
   // indirect lighting components calculated in the code below. The starter
   // code overwrites L_out by (.5,.5,.5) so that you can test your geometry
   // queries before you implement path tracing.
-  L_out = Spectrum(5.f, 5.f, 5.f);
+//  L_out = Spectrum(.5f, .5f, .5f);
 
   Vector3D hit_p = r.o + r.d * isect.t;
   Vector3D hit_n = isect.n;
@@ -465,14 +465,16 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
           // note that computing dot(n,w_in) is simple
         // in surface coordinates since the normal is (0,0,1)
         double cos_theta = w_in.z;
-          
+
         // evaluate surface bsdf
         const Spectrum& f = isect.bsdf->f(w_out, w_in);
 
-        // TODO (PathTracer):
+        // (PathTracer):
         // (Task 4) Construct a shadow ray and compute whether the intersected surface is
         // in shadow. Only accumulate light if not in shadow.
-        L_out += (cos_theta / (num_light_samples * pr)) * f * light_L;
+        Ray shadow_ray(hit_p + EPS_D * dir_to_light, dir_to_light, dist_to_light - (EPS_D * dir_to_light).norm(), 0);
+        if (!bvh->intersect(shadow_ray))
+          L_out += (cos_theta / (num_light_samples * pr)) * f * light_L;
       }
     }
   }
@@ -483,14 +485,14 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
 
   // Note that Ray objects have a depth field now; you should use this to avoid
   // traveling down one path forever.
-  
+
   // (1) randomly select a new ray direction (it may be
   // reflection or transmittence ray depending on
   // surface type -- see BSDF::sample_f()
 
   // (2) potentially terminate path (using Russian roulette)
 
-  // (3) evaluate weighted reflectance contribution due 
+  // (3) evaluate weighted reflectance contribution due
   // to light from this direction
 
   return L_out;
