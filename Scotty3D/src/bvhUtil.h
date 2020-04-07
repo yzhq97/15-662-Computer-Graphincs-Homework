@@ -31,8 +31,6 @@ namespace BVH_UTIL {
 
     }
 
-//    if (p == start || p == end) p = (start + end) / 2;
-
     return p;
   }
 
