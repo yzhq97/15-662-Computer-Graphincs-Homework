@@ -24,7 +24,7 @@ using std::max;
 
 namespace CMU462 {
 
-// #define ENABLE_RAY_LOGGING 1
+//  #define ENABLE_RAY_LOGGING 1
 
 PathTracer::PathTracer(size_t ns_aa, size_t max_ray_depth, size_t ns_area_light,
                        size_t ns_diff, size_t ns_glsy, size_t ns_refr,
@@ -401,10 +401,9 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
     log_ray_miss(r);
 #endif
 
-    // TODO (PathTracer):
     // (Task 7) If you have an environment map, return the Spectrum this ray
     // samples from the environment map. If you don't return black.
-    return Spectrum(0, 0, 0);
+    return envLight ? envLight->sample_dir(r) : Spectrum(0, 0, 0);
   }
 
 // log ray hit
@@ -414,12 +413,12 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
 
   Spectrum L_out = isect.bsdf->get_emission();  // Le
 
-  // TODO (PathTracer):
+  // (PathTracer):
   // Instead of initializing this value to a constant color, use the direct,
   // indirect lighting components calculated in the code below. The starter
   // code overwrites L_out by (.5,.5,.5) so that you can test your geometry
   // queries before you implement path tracing.
-//  L_out = Spectrum(.5f, .5f, .5f);
+  // L_out = Spectrum(.5f, .5f, .5f);
 
   Vector3D hit_p = r.o + r.d * isect.t;
   Vector3D hit_n = isect.n;
@@ -428,11 +427,10 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
   // with N aligned with the Z direction.
   Matrix3x3 o2w;
   make_coord_space(o2w, isect.n);
-  Matrix3x3 w2o = o2w.T();
 
   // w_out points towards the source of the ray (e.g.,
   // toward the camera if this is a primary ray)
-  Vector3D w_out = w2o * (r.o - hit_p);
+  Vector3D w_out = o2w.T() * (r.o - hit_p);
   w_out.normalize();
 
 
@@ -459,7 +457,7 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
 
         // convert direction into coordinate space of the surface, where
         // the surface normal is [0 0 1]
-        const Vector3D& w_in = w2o * dir_to_light;
+        const Vector3D& w_in = o2w.T() * dir_to_light;
         if (w_in.z < 0) continue;
 
           // note that computing dot(n,w_in) is simple
@@ -479,21 +477,30 @@ Spectrum PathTracer::trace_ray(const Ray &r) {
     }
   }
 
-  // TODO (PathTracer):
   // ### (Task 5) Compute an indirect lighting estimate using pathtracing with Monte Carlo.
 
+  if (r.depth > max_ray_depth) return L_out;
 
   // Note that Ray objects have a depth field now; you should use this to avoid
   // traveling down one path forever.
 
-  // (1) randomly select a new ray direction (it may be
-  // reflection or transmittence ray depending on
-  // surface type -- see BSDF::sample_f()
+  for (int i = 0; i < ns_diff; i++) {
+    // (1) randomly select a new ray direction (it may be
+    // reflection or transmittence ray depending on
+    // surface type -- see BSDF::sample_f()
+    float pdf; Vector3D w_in;
+    Spectrum f = isect.bsdf->sample_f(w_out, &w_in, &pdf);
 
-  // (2) potentially terminate path (using Russian roulette)
+    // (2) potentially terminate path (using Russian roulette)
+    float keep_prob = clamp(f.illum(), 0.f, 1.f);
+    if (1.f * rand() / RAND_MAX > keep_prob) return L_out;
 
-  // (3) evaluate weighted reflectance contribution due
-  // to light from this direction
+    // (3) evaluate weighted reflectance contribution due
+    // to light from this direction
+    Vector3D next_dir = (o2w * w_in).unit();
+    Ray next_ray(hit_p + EPS_D * next_dir, next_dir, int(r.depth + 1));
+    L_out += f * trace_ray(next_ray) * abs_cos_theta(w_in) * (1.0 / (pdf * keep_prob * ns_diff));
+  }
 
   return L_out;
 }

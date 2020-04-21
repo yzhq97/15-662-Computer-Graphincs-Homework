@@ -53,7 +53,7 @@ set(APPLICATION_SOURCE
     # Application
     application.cpp
     main.cpp
-)
+        )
 
 #-------------------------------------------------------------------------------
 # Set include directories

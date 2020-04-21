@@ -43,8 +43,16 @@ class EnvironmentLight : public SceneLight {
    */
   Spectrum sample_dir(const Ray& r) const;
 
+  void importance_sample(Vector3D *wi, float *pdf) const;
+  Spectrum interpolate(double x, double y) const;
+
  private:
   const HDRImageBuffer* envMap;
+
+  std::vector<std::vector<double>> p_joint;
+  std::vector<double> p_theta_acc;
+  std::vector<std::vector<double>> p_posterior_acc;
+
 };  // class EnvironmentLight
 
 }  // namespace StaticScene
