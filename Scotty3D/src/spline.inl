@@ -2,23 +2,102 @@
 // the given endpoint and tangent values at the beginning (0) and
 // end (1) of the interval.  Optionally, one can request a derivative
 // of the spline (0=no derivative, 1=first derivative, 2=2nd derivative).
+using namespace std;
+
 template <class T>
 inline T Spline<T>::cubicSplineUnitInterval(
     const T& position0, const T& position1, const T& tangent0,
     const T& tangent1, double normalizedTime, int derivative) {
-  // TODO (Animation) Task 1a
-  return T();
+  // (Animation) Task 1a
+
+  double t1 = normalizedTime;
+  double t2 = t1 * t1;
+  double t3 = t1 * t1 * t1;
+
+  if (derivative == 0) {
+
+    double h00 = 2 * t3 - 3 * t2 + 1;
+    double h10 = t3 - 2 * t2 + t1;
+    double h01 = -2 * t3 + 3 * t2;
+    double h11 = t3 - t2;
+    return h00 * position0 + h10 * tangent0 + h01 * position1 + h11 * tangent1;
+
+  } else if (derivative == 1) {
+
+    double h00 = 6 * t2 - 6 * t1;
+    double h10 = 3 * t2 - 4 * t1 + 1;
+    double h01 = -6 * t2 + 6 * t1;
+    double h11 = 3 * t2 - 2 * t1;
+    return h00 * position0 + h10 * tangent0 + h01 * position1 + h11 * tangent1;
+
+  } else if (derivative == 2) {
+
+    double h00 = 12 * normalizedTime - 6;
+    double h10 = 6 * normalizedTime - 4;
+    double h01 = -12 * normalizedTime + 6;
+    double h11 = 6 * normalizedTime - 2;
+    return h00 * position0 + h10 * tangent0 + h01 * position1 + h11 * tangent1;
+
+  } else {
+    return T();
+  }
+
 }
 
 // Returns a state interpolated between the values directly before and after the
 // given time.
 template <class T>
 inline T Spline<T>::evaluate(double time, int derivative) {
-  // TODO (Animation) Task 1b
-  if (knots.size() < 1)
-    return T();
-  else
-    return knots.begin()->second;
+  // (Animation) Task 1b
+  double t_norm;
+  T p0, p1, m0, m1;
+
+  if (knots.size() < 1) return T();
+
+  if (knots.size() == 1) return derivative == 0 ? knots.begin()->second : T();
+
+  if (time <= knots.begin()->first) return derivative == 0 ? knots.begin()->second : T();
+
+  if (time >= knots.rbegin()->first) return derivative == 0 ? knots.rbegin()->second : T();
+
+  KnotIter kn2 = knots.upper_bound(time);
+  KnotIter kn1 = prev(knots.upper_bound(time));
+  KnotIter kn0, kn3;
+
+  T k0, k1, k2, k3;
+  double t0, t1, t2, t3;
+
+  k1 = kn1->second;
+  k2 = kn2->second;
+
+  t1 = kn1->first;
+  t2 = kn2->first;
+
+  if (kn1 == knots.begin()) {
+    k0 = k1 - (k2 - k1);
+    t0 = t1 - (t2 - t1);
+  } else {
+    kn0 = prev(kn1);
+    k0 = kn0->second;
+    t0 = kn0->first;
+  }
+
+  if (kn2 == prev(knots.end())) {
+    k3 = k2 + (k2 - k1);
+    t3 = t2 + (t2 - t1);
+  } else {
+    kn3 = next(kn2);
+    k3 = kn3->second;
+    t3 = kn3->first;
+  }
+
+  p0 = k1;
+  p1 = k2;
+  m0 = (k2 - k0) * (t2 - t1) / (t2 - t0);
+  m1 = (k3 - k1) * (t2 - t1) / (t3 - t1);
+  t_norm = (time - t1) / (t2 - t1);
+
+  return cubicSplineUnitInterval(p0, p1, m0, m1, t_norm, derivative);
 }
 
 // Removes the knot closest to the given time,

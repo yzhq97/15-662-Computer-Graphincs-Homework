@@ -9,6 +9,7 @@
 #include "../error_dialog.h"
 
 using std::ostringstream;
+using std::vector;
 
 namespace CMU462 {
 namespace DynamicScene {
@@ -49,7 +50,51 @@ Mesh::Mesh(Collada::PolymeshInfo &polyMesh, const Matrix4x4 &transform) {
 }
 
 void Mesh::linearBlendSkinning(bool useCapsuleRadius) {
-  // TODO (Animation) Task 3a, Task 3b
+
+  for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
+
+    std::vector<LBSInfo> lbsinfos;
+    double denom = 0.0;
+
+    for (CMU462::DynamicScene::Joint *joint : skeleton->joints) {
+
+      Vector3D pos = joint->getBindTransformation().inv() * v->bindPosition;
+      Vector3D blend_pos = joint->getTransformation() * joint->getRotation() * pos;
+
+      double dist;
+
+      Vector3D vo = Vector3D(0., 0., 0.);
+      Vector3D v1 = joint->axis;
+      Vector3D v2 = pos - vo;
+
+      if (dot(v1, v2) <= 0.) {
+        dist = v2.norm();
+      } else if (v1.norm()*v1.norm() <= dot(v1,v2)) {
+        dist = (v1 - v2).norm();
+      } else {
+        dist = cross(v1, v2).norm() / v1.norm();
+      }
+
+      if (!useCapsuleRadius || (useCapsuleRadius && dist <= joint->capsuleRadius)) {
+        denom += 1.0 / dist;
+        LBSInfo info;
+        info.blendPos = blend_pos;
+        info.distance = dist;
+        lbsinfos.emplace_back(info);
+      }
+
+    }
+
+    if (lbsinfos.size() == 0) {
+      v->position = v->bindPosition;
+    } else {
+      v->position = Vector3D(0., 0., 0.);
+      for (LBSInfo itinfo : lbsinfos) {
+        v->position += (1.0 / itinfo.distance / denom * itinfo.blendPos);
+      }
+    }
+
+  }
 }
 
 void Mesh::forward_euler(float timestep, float damping_factor) {
