@@ -51,50 +51,69 @@ Mesh::Mesh(Collada::PolymeshInfo &polyMesh, const Matrix4x4 &transform) {
 
 void Mesh::linearBlendSkinning(bool useCapsuleRadius) {
 
-  for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
+  vector<Matrix4x4> mat;
+  vector<Matrix4x4> mat_inv;
 
-    std::vector<LBSInfo> lbsinfos;
-    double denom = 0.0;
+  for (int i = 0; i < skeleton->joints.size(); i++) {
 
-    for (CMU462::DynamicScene::Joint *joint : skeleton->joints) {
-
-      Vector3D pos = joint->getBindTransformation().inv() * v->bindPosition;
-      Vector3D blend_pos = joint->getTransformation() * joint->getRotation() * pos;
-
-      double dist;
-
-      Vector3D vo = Vector3D(0., 0., 0.);
-      Vector3D v1 = joint->axis;
-      Vector3D v2 = pos - vo;
-
-      if (dot(v1, v2) <= 0.) {
-        dist = v2.norm();
-      } else if (v1.norm()*v1.norm() <= dot(v1,v2)) {
-        dist = (v1 - v2).norm();
-      } else {
-        dist = cross(v1, v2).norm() / v1.norm();
-      }
-
-      if (!useCapsuleRadius || (useCapsuleRadius && dist <= joint->capsuleRadius)) {
-        denom += 1.0 / dist;
-        LBSInfo info;
-        info.blendPos = blend_pos;
-        info.distance = dist;
-        lbsinfos.emplace_back(info);
-      }
-
-    }
-
-    if (lbsinfos.size() == 0) {
-      v->position = v->bindPosition;
-    } else {
-      v->position = Vector3D(0., 0., 0.);
-      for (LBSInfo itinfo : lbsinfos) {
-        v->position += (1.0 / itinfo.distance / denom * itinfo.blendPos);
-      }
-    }
+    Joint* j = skeleton->joints[i];
+    Matrix4x4 pos = j->getTransformation() * j->getRotation();
+    Matrix4x4 pos_bind = j->getBindTransformation();
+    mat.push_back(pos);
+    mat_inv.push_back(pos_bind.inv());
 
   }
+
+  for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
+
+    Vector4D bind_pos = Vector4D(v->bindPosition, 1);
+    vector<LBSInfo> lbs_vec;
+
+    Matrix4x4 trans, trans_inv;
+
+    double denom = 0.;
+    for (int i = 0; i < skeleton->joints.size(); i++) {
+
+      Joint* j = skeleton->joints[i];
+      if (j->parent == nullptr)
+        continue;
+
+      trans = mat[i];
+      trans_inv = mat_inv[i];
+
+      Vector4D j_pos = trans_inv * bind_pos;
+      Vector4D world = trans * j_pos;
+      Vector3D world_3d = world.projectTo3D();
+
+      Vector3D j_pos_3d = j_pos.projectTo3D();
+      Vector3D bone = j->axis;
+
+      double dot_prod1 = dot(j_pos_3d, bone);
+      double dot_prod2 = dot(j_pos_3d - bone, -bone);
+      double distance = 0.;
+
+      if (dot_prod1 <= 0.) distance = j_pos_3d.norm();
+      else if (dot_prod2 <= 0.) distance = (j_pos_3d - bone).norm();
+      else distance = cross(j_pos_3d, bone).norm() / (bone.norm() + EPS_D);
+
+      if (!useCapsuleRadius|| distance <= j->capsuleRadius) {
+        LBSInfo info;
+        info.blendPos = world_3d;
+        info.distance = distance;
+        lbs_vec.push_back(info);
+        denom += 1. / (distance + EPS_D);
+      }
+    }
+
+    if (lbs_vec.size() == 0)
+      continue;
+    Vector3D skinnedPos = Vector3D(0, 0, 0);
+    for (LBSInfo info : lbs_vec) {
+      skinnedPos += ((1. / (info.distance + 1e-8)) / denom) * info.blendPos;
+    }
+    v->position = skinnedPos;
+  }
+
 }
 
 void Mesh::forward_euler(float timestep, float damping_factor) {
@@ -107,8 +126,8 @@ void Mesh::symplectic_euler(float timestep, float damping_factor) {
 
 void Mesh::resetWave() {
   for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
-    v->velocity = 0.0;
-    v->offset = 0.0;
+    v->velocity = 0.;
+    v->offset = 0.;
   }
 }
 
@@ -170,9 +189,9 @@ void Mesh::draw_pretty() {
 
   glPushMatrix();
   glTranslatef(position.x, position.y, position.z);
-  glRotatef(rotation.x, 1.0f, 0.0f, 0.0f);
-  glRotatef(rotation.y, 0.0f, 1.0f, 0.0f);
-  glRotatef(rotation.z, 0.0f, 0.0f, 1.0f);
+  glRotatef(rotation.x, 1.0f, 0.f, 0.f);
+  glRotatef(rotation.y, 0.f, 1.0f, 0.f);
+  glRotatef(rotation.z, 0.f, 0.f, 1.0f);
   glScalef(scale.x, scale.y, scale.z);
 
   if (bsdf) {
@@ -217,9 +236,9 @@ void Mesh::draw() {
 
   glPushMatrix();
   glTranslatef(position.x, position.y, position.z);
-  glRotatef(rotation.x, 1.0f, 0.0f, 0.0f);
-  glRotatef(rotation.y, 0.0f, 1.0f, 0.0f);
-  glRotatef(rotation.z, 0.0f, 0.0f, 1.0f);
+  glRotatef(rotation.x, 1.0f, 0.f, 0.f);
+  glRotatef(rotation.y, 0.f, 1.0f, 0.f);
+  glRotatef(rotation.z, 0.f, 0.f, 1.0f);
   glScalef(scale.x, scale.y, scale.z);
 
   glDisable(GL_BLEND);
@@ -270,9 +289,9 @@ void Mesh::drawGhost() {
 
   glPushMatrix();
   glTranslatef(position.x, position.y, position.z);
-  glRotatef(rotation.x, 1.0f, 0.0f, 0.0f);
-  glRotatef(rotation.y, 0.0f, 1.0f, 0.0f);
-  glRotatef(rotation.z, 0.0f, 0.0f, 1.0f);
+  glRotatef(rotation.x, 1.0f, 0.f, 0.f);
+  glRotatef(rotation.y, 0.f, 1.0f, 0.f);
+  glRotatef(rotation.z, 0.f, 0.f, 1.0f);
   glScalef(scale.x, scale.y, scale.z);
 
   glEnable(GL_BLEND);
@@ -681,9 +700,9 @@ void Mesh::draw_pick(int &pickID, bool transformed) {
   if (transformed) {
     glPushMatrix();
     glTranslatef(position.x, position.y, position.z);
-    glRotatef(rotation.x, 1.0f, 0.0f, 0.0f);
-    glRotatef(rotation.y, 0.0f, 1.0f, 0.0f);
-    glRotatef(rotation.z, 0.0f, 0.0f, 1.0f);
+    glRotatef(rotation.x, 1.0f, 0.f, 0.f);
+    glRotatef(rotation.y, 0.f, 1.0f, 0.f);
+    glRotatef(rotation.z, 0.f, 0.f, 1.0f);
     glScalef(scale.x, scale.y, scale.z);
     for (VertexIter v = mesh.verticesBegin(); v != mesh.verticesEnd(); v++) {
       originalPositions.push_back(v->position);

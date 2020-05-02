@@ -10,8 +10,8 @@ Correctly implemented.
 
 Task 3:
 
-I am able to correctly render bunny, dragon, blob and bench, but when I tried to render wall-e it crashes when building the BVH.
-
-Task 4:
-
 Correctly implemented.
+
+Task 5:
+
+I made an animation of the bullet dodging move in Matrix. (Looks kinda weird though)

@@ -35,7 +35,7 @@ Vector3D CosineWeightedHemisphereSampler3D::get_sample() const {
 }
 
 Vector3D CosineWeightedHemisphereSampler3D::get_sample(float *pdf) const {
-  // You may implement this, but don't have to.
+
   double Xi1 = (double)(rand()) / RAND_MAX;
   double Xi2 = (double)(rand()) / RAND_MAX;
 
